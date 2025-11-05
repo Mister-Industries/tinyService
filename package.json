@@ -1,0 +1,37 @@
+{
+  "name": "tinyservice-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo for TinyService - Arduino WebSocket Service and Web Client",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:service": "npm run dev --workspace=packages/service",
+    "dev:client": "npm run dev --workspace=packages/client",
+    "dev": "npm run dev:service & npm run dev:client",
+    "build:shared": "npm run build --workspace=packages/shared",
+    "build:service": "npm run build --workspace=packages/service",
+    "build:client": "npm run build --workspace=packages/client",
+    "build": "npm run build:shared && npm run build:service && npm run build:client",
+    "start:service": "npm run start --workspace=packages/service",
+    "start:client": "npm run preview --workspace=packages/client",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces"
+  },
+  "keywords": [
+    "monorepo",
+    "arduino",
+    "websocket",
+    "react",
+    "vite",
+    "typescript",
+    "compilation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
+  }
+}

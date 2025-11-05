@@ -1,0 +1,40 @@
+{
+  "name": "@tinyservice/shared",
+  "version": "1.0.0",
+  "description": "Shared messaging types and utilities for TinyService client-server communication",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "arduino",
+    "websocket",
+    "typescript",
+    "messaging"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "typescript": "^5.3.2",
+    "rimraf": "^5.0.5"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Dev: Client",
+      "type": "shell",
+      "command": "npm run dev:client",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "dev"
+      }
+    },
+    {
+      "label": "Dev: Service",
+      "type": "shell",
+      "command": "npm run dev:service",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "dev"
+      }
+    },
+    {
+      "label": "Start Dev Environment",
+      "dependsOn": ["Dev: Client", "Dev: Service"],
+      "problemMatcher": []
+    }
+  ]
+}

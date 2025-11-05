@@ -1,0 +1,45 @@
+{
+  "name": "@tinyservice/service",
+  "version": "1.0.0",
+  "description": "Node.js TypeScript WebSocket service for compiling Arduino projects",
+  "main": "dist/service.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/service.ts",
+    "build": "tsc",
+    "start": "node dist/service.js",
+    "package": "npm run build && pkg dist/service.js --out-path ../../dist --targets node18-win-x64,node18-macos-x64,node18-macos-arm64,node18-linux-x64",
+    "package:win": "npm run build && pkg dist/service.js --targets node18-win-x64 --output ../../dist/tinyservice-win.exe",
+    "package:mac": "npm run build && pkg dist/service.js --targets node18-macos-x64,node18-macos-arm64 --out-path ../../dist",
+    "package:linux": "npm run build && pkg dist/service.js --targets node18-linux-x64 --output ../../dist/tinyservice-linux",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix"
+  },
+  "keywords": [
+    "arduino",
+    "websocket",
+    "typescript",
+    "compilation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.7",
+    "@types/ws": "^8.5.10",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "eslint": "^8.54.0",
+    "pkg": "^5.8.1",
+    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "@tinyservice/shared": "^1.0.0",
+    "express": "^4.18.2",
+    "uuid": "^9.0.1",
+    "ws": "^8.14.2"
+  }
+}
