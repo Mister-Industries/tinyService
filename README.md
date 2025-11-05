@@ -8,8 +8,7 @@ A monorepo containing an Arduino WebSocket service and a web client for compilin
 2. Open the repo in vscode
 3. Open the terminal
 4. Run `npm install`
-5. Run `cd packages/shared` then `npm run build`
-6. Run `cd ../..` then copy `packages/service/.env.example` into a new file named `packages/service/.env`
+6. Copy `packages/service/.env.example` into a new file named `packages/service/.env`
 6. Hit `Ctrl+Shift+P` and type "run task" then select "Tasks: Run Task"
 7. Then select "Start Dev Environment"
 8. Open your browser to [localhost:5173](http://localhost:5173) to use the test bench

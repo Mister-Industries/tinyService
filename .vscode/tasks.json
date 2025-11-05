@@ -2,6 +2,17 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Build: Shared",
+      "type": "shell",
+      "command": "npm run build:shared",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "build"
+      }
+    },
+    {
       "label": "Dev: Client",
       "type": "shell",
       "command": "npm run dev:client",
@@ -26,8 +37,14 @@
       }
     },
     {
-      "label": "Start Dev Environment",
+      "label": "Split Terminals",
       "dependsOn": ["Dev: Client", "Dev: Service"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Dev Environment",
+      "dependsOn": ["Build: Shared", "Split Terminals"],
+      "dependsOrder": "sequence",
       "problemMatcher": []
     }
   ]
