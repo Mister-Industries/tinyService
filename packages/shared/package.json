@@ -1,5 +1,5 @@
 {
-  "name": "@tinyservice/shared",
+  "name": "@mister-industries/shared",
   "version": "1.0.0",
   "description": "Shared messaging types and utilities for TinyService client-server communication",
   "main": "dist/index.js",
@@ -36,5 +36,12 @@
   "files": [
     "dist",
     "README.md"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mister-industries/tinyService.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
 }
