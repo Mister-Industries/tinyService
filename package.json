@@ -18,6 +18,7 @@
   "description": "A monorepo for tinyService, a Node.js based service to provide arduino compile and upload capabilities for IDEs",
   "scripts": {
     "build": "turbo build",
+    "test": "turbo test",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "lint-staged": "lint-staged",
@@ -35,11 +36,12 @@
     "packages/*"
   ],
   "devDependencies": {
+    "@tinyservice/eslint-config": "*",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
     "prettier": "^3.6.2",
     "turbo": "^2.6.0",
     "typescript": "^5.9.3",
-    "@tinyservice/eslint-config": "*"
+    "vitest": "^4.0.8"
   }
 }

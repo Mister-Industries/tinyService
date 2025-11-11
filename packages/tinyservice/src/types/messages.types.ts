@@ -2,19 +2,19 @@ import WebSocket from "ws";
 
 // Re-export shared types
 export {
-  IncomingMessage,
-  OutgoingMessage,
-  CompileRequest,
-  UploadRequest,
-  BoardInfo,
-  ArduinoCliResult,
   ActionType,
-  MessageType,
-  StatusData,
-  ErrorData,
-  OutputData,
+  ArduinoCliResult,
+  BoardInfo,
+  CompileRequest,
   CompleteData,
-} from "@tinyservice/shared";
+  ErrorData,
+  IncomingMessage,
+  MessageType,
+  OutgoingMessage,
+  OutputData,
+  StatusData,
+  UploadRequest,
+} from "@mister-industries/shared";
 
 // Service-specific types
 export interface WebSocketConnection extends WebSocket {

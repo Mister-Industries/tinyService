@@ -8,5 +8,10 @@ export const createEslintConfig = () => {
     {
       ignores: ["node_modules", "dist"],
     },
+    {
+      rules: {
+        "@typescript-eslint/no-explicit-any": "off",
+      },
+    },
   );
 };

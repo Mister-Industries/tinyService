@@ -1,0 +1,56 @@
+{
+  "name": "@mister-industries/shared",
+  "version": "1.0.0",
+  "description": "Shared messaging types and utilities for TinyService client-server communication",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "lint-staged": {
+    "*.{js,ts}": [
+      "eslint ./src/**/*.{js,ts} --fix",
+      "prettier --write --ignore-unknown"
+    ],
+    "!(*.js|*.ts)": [
+      "prettier --write --ignore-unknown"
+    ]
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "arduino",
+    "websocket",
+    "typescript",
+    "messaging"
+  ],
+  "author": "Ethan Eckhardt",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "typescript": "^5.3.2",
+    "rimraf": "^5.0.5"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mister-industries/tinyService.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}

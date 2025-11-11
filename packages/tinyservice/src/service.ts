@@ -4,8 +4,9 @@ import { config, logger } from "./config.js";
 import { ArduinoCliService } from "./services/arduino-cli.service.js";
 import { WebSocketService } from "./services/websocket.service.js";
 
-class TinyService {
+export class TinyService {
   private app: express.Application;
+
   private httpServer: any;
   private webSocketService: WebSocketService;
   private arduinoService: ArduinoCliService;
@@ -149,10 +150,3 @@ class TinyService {
     }
   }
 }
-
-// Start the service
-const service = new TinyService();
-service.start().catch((error) => {
-  logger.error("Failed to start TinyService:", error);
-  process.exit(1);
-});
