@@ -1,5 +1,5 @@
 {
-  "name": "tinyservice",
+  "name": "@tinyservice/monorepo",
   "keywords": [
     "arduino",
     "esp32",
@@ -19,7 +19,9 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "lint": "turbo lint"
+    "lint": "turbo lint",
+    "lint-staged": "lint-staged",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=20"
@@ -33,7 +35,11 @@
     "packages/*"
   ],
   "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2",
     "turbo": "^2.6.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@tinyservice/eslint-config": "*"
   }
 }
