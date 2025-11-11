@@ -10,8 +10,12 @@
     "dist"
   ],
   "lint-staged": {
-    "*.{js,ts,json,md}": [
-      "prettier --write"
+    "*.{js,ts}": [
+      "eslint ./src/**/*.{js,ts} --fix",
+      "prettier --write --ignore-unknown"
+    ],
+    "!(*.js|*.ts)": [
+      "prettier --write --ignore-unknown"
     ]
   },
   "scripts": {
