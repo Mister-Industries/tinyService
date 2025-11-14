@@ -28,9 +28,8 @@ export class WebSocketService {
   constructor(server: any) {
     this.wss = new WebSocketServer({
       server,
-      verifyClient: (info: { origin: string; secure: boolean; req: any }) => {
+      verifyClient: (_info: { origin: string; secure: boolean; req: any }) => {
         // Basic origin verification - can be enhanced based on requirements
-        console.log(info);
         return true;
       },
     });
