@@ -48,7 +48,7 @@ export class TinyService {
 
   private setupRoutes(): void {
     // Health check endpoint
-    this.app.get("/health", async (req, res) => {
+    this.app.get("/health", async (_req, res) => {
       try {
         const arduinoCliAvailable =
           await this.arduinoService.checkAvailability();
@@ -79,7 +79,7 @@ export class TinyService {
     });
 
     // API info endpoint
-    this.app.get("/", (req, res) => {
+    this.app.get("/", (_req, res) => {
       res.json({
         name: "TinyService",
         version: "1.0.0",
@@ -94,7 +94,7 @@ export class TinyService {
     });
 
     // Catch-all for undefined routes
-    this.app.use("*", (req, res) => {
+    this.app.use("*", (_req, res) => {
       res.status(404).json({
         error: "Not found",
         message: "The requested endpoint does not exist",

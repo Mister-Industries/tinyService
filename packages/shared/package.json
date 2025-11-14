@@ -7,8 +7,8 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "lint-staged": {
-    "*.{js,ts}": [
-      "eslint ./src/**/*.{js,ts} --fix",
+    "src/**/*.{js,ts}": [
+      "eslint --fix",
       "prettier --write --ignore-unknown"
     ],
     "!(*.js|*.ts)": [
