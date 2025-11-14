@@ -18,7 +18,7 @@ export class ArduinoCliService {
     onOutput?: (data: string) => void,
   ): Promise<ArduinoCliResult> {
     return this.executeCommand(
-      ["compile", "--fqbn", board, sketchPath],
+      ["compile", "--verbose", "--fqbn", board, sketchPath],
       onOutput,
     );
   }
@@ -68,8 +68,6 @@ export class ArduinoCliService {
         logger.error("Failed to list boards:", result.error);
         return [];
       }
-
-      console.log("Arduino CLI list boards output:", result.output);
 
       const boardsData = JSON.parse(result.output);
       const boards: BoardInfo[] = [];

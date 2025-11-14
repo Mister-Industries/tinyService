@@ -10,7 +10,7 @@ export const TINYCORE_FQBN = "tinyCore:esp32:tiny_core_esp32s3_nopsram";
 // Sketch path - using absolute path for the blink example
 // Note: In production, this would need to be properly resolved
 export const BLINK_SKETCH_PATH =
-  "D:/repos/tinyService/packages/client/src/assets/blink";
+  "D:/repos/tinyService/packages/test-client/src/assets/blink";
 
 // Test configuration
 export const TEST_TIMEOUT = 30000; // 30 seconds per test step

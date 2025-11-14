@@ -19,7 +19,7 @@
     ]
   },
   "scripts": {
-    "dev": "tsx watch src/service.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsup src/service.ts --dts --format esm",
     "test": "vitest run",
     "start": "node dist/service.js",
