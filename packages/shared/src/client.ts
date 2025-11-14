@@ -242,7 +242,7 @@ export class TinyServiceClient {
 
     this.reconnectAttempts++;
     this.log(
-      `Reconnecting in ${this.config.reconnectInterval}ms (attempt ${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`
+      `Reconnecting in ${this.config.reconnectInterval}ms (attempt ${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`,
     );
 
     this.reconnectTimeout = setTimeout(() => {

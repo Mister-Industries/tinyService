@@ -6,6 +6,15 @@
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "lint-staged": {
+    "src/**/*.{js,ts}": [
+      "eslint --fix",
+      "prettier --write --ignore-unknown"
+    ],
+    "!(*.js|*.ts)": [
+      "prettier --write --ignore-unknown"
+    ]
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -18,7 +27,7 @@
     "typescript",
     "messaging"
   ],
-  "author": "",
+  "author": "Ethan Eckhardt",
   "license": "MIT",
   "devDependencies": {
     "@types/react": "^18.0.0",

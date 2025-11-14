@@ -44,7 +44,7 @@ export class MessageFactory {
   static upload(
     sketchPath: string,
     board: string,
-    port: string
+    port: string,
   ): IncomingMessage {
     return {
       action: ACTIONS.UPLOAD,

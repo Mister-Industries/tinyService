@@ -132,7 +132,7 @@ export class MessageValidator {
     try {
       JSON.parse(str);
       return { valid: true };
-    } catch (error) {
+    } catch {
       return { valid: false, error: "Invalid JSON format" };
     }
   }
@@ -158,7 +158,7 @@ export class MessageValidator {
       }
 
       return { message: data as IncomingMessage };
-    } catch (error) {
+    } catch {
       return { error: "Failed to parse message" };
     }
   }
@@ -184,7 +184,7 @@ export class MessageValidator {
       }
 
       return { message: data as OutgoingMessage };
-    } catch (error) {
+    } catch {
       return { error: "Failed to parse message" };
     }
   }
