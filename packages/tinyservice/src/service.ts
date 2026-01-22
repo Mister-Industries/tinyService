@@ -3,6 +3,7 @@ import { createServer } from "http";
 import { config, logger } from "./config.js";
 import { ArduinoCliService } from "./services/arduino-cli.service.js";
 import { WebSocketService } from "./services/websocket.service.js";
+import type { ServiceConfig } from "./types/messages.types.js";
 
 export class TinyService {
   private app: express.Application;
@@ -10,8 +11,10 @@ export class TinyService {
   private httpServer: any;
   private webSocketService: WebSocketService;
   private arduinoService: ArduinoCliService;
+  private config: ServiceConfig;
 
-  constructor() {
+  constructor(userConfig?: Partial<ServiceConfig>) {
+    this.config = { ...config, ...userConfig };
     this.app = express();
     this.httpServer = createServer(this.app);
     this.arduinoService = new ArduinoCliService();
@@ -59,13 +62,13 @@ export class TinyService {
           timestamp: new Date().toISOString(),
           arduinoCli: {
             available: arduinoCliAvailable,
-            path: config.arduinoCliPath,
+            path: this.config.arduinoCliPath,
           },
           webSocket: {
             connectionCount,
           },
           service: {
-            port: config.port,
+            port: this.config.port,
             uptime: process.uptime(),
           },
         });
@@ -87,7 +90,7 @@ export class TinyService {
           "WebSocket service for compiling and uploading Arduino projects",
         endpoints: {
           health: "/health",
-          websocket: `ws://localhost:${config.port}`,
+          websocket: `ws://localhost:${this.config.port}`,
         },
         actions: ["compile", "upload", "verify", "list-boards"],
       });
@@ -124,6 +127,19 @@ export class TinyService {
     process.on("SIGINT", () => shutdown("SIGINT"));
   }
 
+  public async stop(): Promise<void> {
+    logger.info("Stopping TinyService...");
+
+    this.webSocketService.close();
+
+    return new Promise((resolve) => {
+      this.httpServer.close(() => {
+        logger.info("TinyService stopped successfully.");
+        resolve();
+      });
+    });
+  }
+
   public async start(): Promise<void> {
     try {
       // Check if Arduino CLI is available
@@ -132,17 +148,19 @@ export class TinyService {
         logger.warn(
           "Arduino CLI is not available. Please ensure it is installed and accessible.",
         );
-        logger.warn(`Configured Arduino CLI path: ${config.arduinoCliPath}`);
+        logger.warn(
+          `Configured Arduino CLI path: ${this.config.arduinoCliPath}`,
+        );
       } else {
         logger.info("Arduino CLI is available and ready.");
       }
 
-      this.httpServer.listen(config.port, () => {
-        logger.info(`TinyService started on port ${config.port}`);
+      this.httpServer.listen(this.config.port, () => {
+        logger.info(`TinyService started on port ${this.config.port}`);
         logger.info(
-          `Health check available at: http://localhost:${config.port}/health`,
+          `Health check available at: http://localhost:${this.config.port}/health`,
         );
-        logger.info(`WebSocket endpoint: ws://localhost:${config.port}`);
+        logger.info(`WebSocket endpoint: ws://localhost:${this.config.port}`);
       });
     } catch (error) {
       logger.error("Failed to start service:", error);

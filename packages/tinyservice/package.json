@@ -1,13 +1,21 @@
 {
-  "name": "@tinyservice/tinyservice",
-  "version": "0.0.0",
+  "name": "@mister-industries/tinyservice",
+  "version": "1.0.0",
   "description": "Node.js TypeScript WebSocket service for compiling Arduino projects",
-  "private": "true",
   "type": "module",
   "main": "./dist/service.js",
   "types": "./dist/service.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/service.js",
+      "types": "./dist/service.d.ts"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "scripts",
+    "binaries",
+    "ELECTRON.md"
   ],
   "lint-staged": {
     "src/**/*.{js,ts}": [
@@ -24,7 +32,9 @@
     "test": "vitest run",
     "start": "node dist/service.js",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "download-arduino-cli": "node scripts/download-arduino-cli.js",
+    "prepublishOnly": "npm run build && npm run download-arduino-cli"
   },
   "keywords": [
     "arduino",
@@ -32,7 +42,15 @@
     "typescript",
     "compilation"
   ],
-  "author": "",
+  "author": "Ethan Eckhardt",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mister-industries/tinyService.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@tinyservice/eslint-config": "*",
@@ -40,7 +58,9 @@
     "@types/uuid": "^9.0.7",
     "@types/ws": "^8.5.10",
     "eslint": "^9.0.0",
+    "extract-zip": "^2.0.1",
     "pkg": "^5.8.1",
+    "tar": "^7.4.3",
     "ts-node-dev": "^2.0.0",
     "tsup": "^8.5.0",
     "tsx": "^4.20.6",
