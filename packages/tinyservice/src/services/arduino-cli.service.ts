@@ -1,12 +1,12 @@
 import { ChildProcess, spawn } from "child_process";
-import { config, logger } from "../config.js";
+import { logger } from "../config.js";
 import type { ArduinoCliResult, BoardInfo } from "../types/messages.types.js";
 
 export class ArduinoCliService {
   private readonly cliPath: string;
 
-  constructor() {
-    this.cliPath = config.arduinoCliPath;
+  constructor(arduinoCliPath: string) {
+    this.cliPath = arduinoCliPath;
   }
 
   /**
@@ -18,7 +18,7 @@ export class ArduinoCliService {
     onOutput?: (data: string) => void,
   ): Promise<ArduinoCliResult> {
     return this.executeCommand(
-      ["compile", "--verbose", "--fqbn", board, sketchPath],
+      ["compile", "--fqbn", board, sketchPath],
       onOutput,
     );
   }

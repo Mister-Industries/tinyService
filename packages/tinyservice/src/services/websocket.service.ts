@@ -25,7 +25,7 @@ export class WebSocketService {
   private boardsHandler: BoardsHandler;
   private arduinoService: ArduinoCliService;
 
-  constructor(server: any) {
+  constructor(server: any, arduinoService: ArduinoCliService) {
     this.wss = new WebSocketServer({
       server,
       verifyClient: (_info: { origin: string; secure: boolean; req: any }) => {
@@ -34,10 +34,10 @@ export class WebSocketService {
       },
     });
 
-    this.compileHandler = new CompileHandler();
-    this.uploadHandler = new UploadHandler();
-    this.boardsHandler = new BoardsHandler();
-    this.arduinoService = new ArduinoCliService();
+    this.arduinoService = arduinoService;
+    this.compileHandler = new CompileHandler(arduinoService);
+    this.uploadHandler = new UploadHandler(arduinoService);
+    this.boardsHandler = new BoardsHandler(arduinoService);
 
     this.setupWebSocketServer();
     this.startHeartbeat();

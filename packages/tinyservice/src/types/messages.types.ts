@@ -1,7 +1,7 @@
 import WebSocket from "ws";
 
 // Re-export shared types
-export {
+export type {
   ActionType,
   ArduinoCliResult,
   BoardInfo,
