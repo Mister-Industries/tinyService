@@ -51,9 +51,6 @@
     "type": "git",
     "url": "git+https://github.com/mister-industries/tinyService.git"
   },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@tinyservice/eslint-config": "*",
