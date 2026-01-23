@@ -1,6 +1,6 @@
 {
   "name": "@mister-industries/tinyservice",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Node.js TypeScript WebSocket service for compiling Arduino projects",
   "type": "module",
   "main": "./dist/service.js",
@@ -17,6 +17,9 @@
     "binaries",
     "ELECTRON.md"
   ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "lint-staged": {
     "src/**/*.{js,ts}": [
       "eslint --fix",

@@ -7,21 +7,26 @@ import type { ServiceConfig } from "./types/messages.types.js";
 
 export class TinyService {
   private app: express.Application;
-
+  private config: ServiceConfig;
   private httpServer: any;
   private webSocketService: WebSocketService;
   private arduinoService: ArduinoCliService;
   private config: ServiceConfig;
 
   constructor(userConfig?: Partial<ServiceConfig>) {
+    // Merge user config with defaults from global config
     this.config = { ...config, ...userConfig };
+
     this.app = express();
     this.httpServer = createServer(this.app);
-    this.arduinoService = new ArduinoCliService();
+    this.arduinoService = new ArduinoCliService(this.config.arduinoCliPath);
 
     this.setupMiddleware();
     this.setupRoutes();
-    this.webSocketService = new WebSocketService(this.httpServer);
+    this.webSocketService = new WebSocketService(
+      this.httpServer,
+      this.arduinoService,
+    );
     this.setupGracefulShutdown();
   }
 
@@ -166,5 +171,36 @@ export class TinyService {
       logger.error("Failed to start service:", error);
       process.exit(1);
     }
+  }
+
+  public async stop(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        logger.info("Stopping TinyService...");
+
+        // Close WebSocket connections
+        this.webSocketService.close();
+
+        // Close HTTP server
+        this.httpServer.close((err?: Error) => {
+          if (err) {
+            logger.error("Error closing HTTP server:", err);
+            reject(err);
+          } else {
+            logger.info("TinyService stopped successfully");
+            resolve();
+          }
+        });
+
+        // Force close after 5 seconds if graceful shutdown fails
+        setTimeout(() => {
+          logger.warn("Forcefully closing TinyService after timeout");
+          resolve();
+        }, 5000);
+      } catch (error) {
+        logger.error("Error stopping TinyService:", error);
+        reject(error);
+      }
+    });
   }
 }

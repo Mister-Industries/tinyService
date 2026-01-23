@@ -9,8 +9,8 @@ import type {
 export class CompileHandler {
   private arduinoService: ArduinoCliService;
 
-  constructor() {
-    this.arduinoService = new ArduinoCliService();
+  constructor(arduinoService: ArduinoCliService) {
+    this.arduinoService = arduinoService;
   }
 
   async handle(
