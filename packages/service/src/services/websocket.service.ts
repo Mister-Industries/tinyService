@@ -1,5 +1,5 @@
-import type { IncomingMessage, OutgoingMessage } from "@tinyservice/shared";
-import { MessageValidator } from "@tinyservice/shared";
+import type { IncomingMessage, OutgoingMessage } from "@mister-industries/shared";
+import { MessageValidator } from "@mister-industries/shared";
 import { v4 as uuidv4 } from "uuid";
 import WebSocket, { WebSocketServer } from "ws";
 import { logger } from "../config.js";

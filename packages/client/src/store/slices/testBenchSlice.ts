@@ -1,7 +1,7 @@
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { createSlice } from "@reduxjs/toolkit";
-import type { BoardInfo } from "@tinyservice/shared";
-import { TinyServiceClient } from "@tinyservice/shared";
+import type { BoardInfo } from "@mister-industries/shared";
+import { TinyServiceClient } from "@mister-industries/shared";
 
 export type TestStatus = "pass" | "fail" | "queued" | "running";
 

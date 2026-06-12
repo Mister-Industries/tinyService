@@ -14,7 +14,7 @@ export {
   ErrorData,
   OutputData,
   CompleteData,
-} from "@tinyservice/shared";
+} from "@mister-industries/shared";
 
 // Service-specific types
 export interface WebSocketConnection extends WebSocket {

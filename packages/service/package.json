@@ -1,17 +1,17 @@
 {
-  "name": "@tinyservice/service",
+  "name": "@mister-industries/tinyservice",
   "version": "1.0.0",
-  "description": "Node.js TypeScript WebSocket service for compiling Arduino projects",
+  "description": "Node.js TypeScript WebSocket service for compiling Arduino projects (tinyStudio backend)",
   "main": "dist/service.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/service.ts",
+    "dev": "tsx watch src/main.ts",
     "build": "tsc",
-    "start": "node dist/service.js",
-    "package": "npm run build && pkg dist/service.js --out-path ../../dist --targets node18-win-x64,node18-macos-x64,node18-macos-arm64,node18-linux-x64",
-    "package:win": "npm run build && pkg dist/service.js --targets node18-win-x64 --output ../../dist/tinyservice-win.exe",
-    "package:mac": "npm run build && pkg dist/service.js --targets node18-macos-x64,node18-macos-arm64 --out-path ../../dist",
-    "package:linux": "npm run build && pkg dist/service.js --targets node18-linux-x64 --output ../../dist/tinyservice-linux",
+    "start": "node dist/main.js",
+    "package": "npm run build && pkg dist/main.js --out-path ../../dist --targets node18-win-x64,node18-macos-x64,node18-macos-arm64,node18-linux-x64",
+    "package:win": "npm run build && pkg dist/main.js --targets node18-win-x64 --output ../../dist/tinyservice-win.exe",
+    "package:mac": "npm run build && pkg dist/main.js --targets node18-macos-x64,node18-macos-arm64 --out-path ../../dist",
+    "package:linux": "npm run build && pkg dist/main.js --targets node18-linux-x64 --output ../../dist/tinyservice-linux",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },
@@ -37,9 +37,10 @@
     "typescript": "^5.3.2"
   },
   "dependencies": {
-    "@tinyservice/shared": "^1.0.0",
     "express": "^4.18.2",
     "uuid": "^9.0.1",
-    "ws": "^8.14.2"
-  }
+    "ws": "^8.14.2",
+    "@mister-industries/shared": "file:../shared"
+  },
+  "types": "dist/service.d.ts"
 }

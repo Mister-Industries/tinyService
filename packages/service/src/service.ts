@@ -1,16 +1,21 @@
 import express from "express";
 import { createServer } from "http";
-import { config, logger } from "./config.js";
+import { config, configure, logger } from "./config.js";
 import { ArduinoCliService } from "./services/arduino-cli.service.js";
 import { WebSocketService } from "./services/websocket.service.js";
+import type { ServiceConfig } from "./types/messages.types.js";
 
-class TinyService {
+export class TinyService {
   private app: express.Application;
   private httpServer: any;
   private webSocketService: WebSocketService;
   private arduinoService: ArduinoCliService;
 
-  constructor() {
+  constructor(options?: Partial<ServiceConfig>) {
+    if (options) {
+      configure(options);
+    }
+
     this.app = express();
     this.httpServer = createServer(this.app);
     this.arduinoService = new ArduinoCliService();
@@ -18,7 +23,6 @@ class TinyService {
     this.setupMiddleware();
     this.setupRoutes();
     this.webSocketService = new WebSocketService(this.httpServer);
-    this.setupGracefulShutdown();
   }
 
   private setupMiddleware(): void {
@@ -101,58 +105,48 @@ class TinyService {
     });
   }
 
-  private setupGracefulShutdown(): void {
-    const shutdown = (signal: string) => {
-      logger.info(`Received ${signal}. Starting graceful shutdown...`);
-
-      this.webSocketService.close();
-
-      this.httpServer.close(() => {
-        logger.info("Service closed. Exiting process.");
-        process.exit(0);
-      });
-
-      // Force exit after 10 seconds if graceful shutdown fails
-      setTimeout(() => {
-        logger.error("Graceful shutdown timed out. Force exiting.");
-        process.exit(1);
-      }, 10000);
-    };
-
-    process.on("SIGTERM", () => shutdown("SIGTERM"));
-    process.on("SIGINT", () => shutdown("SIGINT"));
-  }
-
   public async start(): Promise<void> {
-    try {
-      // Check if Arduino CLI is available
-      const arduinoCliAvailable = await this.arduinoService.checkAvailability();
-      if (!arduinoCliAvailable) {
-        logger.warn(
-          "Arduino CLI is not available. Please ensure it is installed and accessible."
-        );
-        logger.warn(`Configured Arduino CLI path: ${config.arduinoCliPath}`);
-      } else {
-        logger.info("Arduino CLI is available and ready.");
-      }
+    // Check if Arduino CLI is available
+    const arduinoCliAvailable = await this.arduinoService.checkAvailability();
+    if (!arduinoCliAvailable) {
+      logger.warn(
+        "Arduino CLI is not available. Please ensure it is installed and accessible."
+      );
+      logger.warn(`Configured Arduino CLI path: ${config.arduinoCliPath}`);
+    } else {
+      logger.info("Arduino CLI is available and ready.");
+    }
 
+    await new Promise<void>((resolve, reject) => {
+      this.httpServer.once("error", reject);
       this.httpServer.listen(config.port, () => {
+        this.httpServer.removeListener("error", reject);
         logger.info(`TinyService started on port ${config.port}`);
         logger.info(
           `Health check available at: http://localhost:${config.port}/health`
         );
         logger.info(`WebSocket endpoint: ws://localhost:${config.port}`);
+        resolve();
       });
-    } catch (error) {
-      logger.error("Failed to start service:", error);
-      process.exit(1);
-    }
+    });
+  }
+
+  /**
+   * Stop the service gracefully: close WebSocket connections and the HTTP
+   * server. Does NOT exit the process — embedders own the process lifecycle.
+   */
+  public async stop(): Promise<void> {
+    this.webSocketService.close();
+
+    await new Promise<void>((resolve, reject) => {
+      this.httpServer.close((error?: Error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
+
+    logger.info("TinyService stopped.");
   }
 }
 
-// Start the service
-const service = new TinyService();
-service.start().catch((error) => {
-  logger.error("Failed to start TinyService:", error);
-  process.exit(1);
-});
+export default TinyService;

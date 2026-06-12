@@ -1,5 +1,5 @@
-import type { OutgoingMessage } from "@tinyservice/shared";
-import { TinyServiceClient } from "@tinyservice/shared";
+import type { OutgoingMessage } from "@mister-industries/shared";
+import { TinyServiceClient } from "@mister-industries/shared";
 import { useCallback, useEffect } from "react";
 import {
   MAX_RECONNECT_ATTEMPTS,
