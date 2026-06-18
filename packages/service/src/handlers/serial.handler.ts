@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from "child_process";
+import { ChildProcess, spawn, execFile } from "child_process";
 import { config, logger } from "../config.js";
 import type {
   IncomingMessage,
@@ -102,16 +102,28 @@ export class SerialHandler {
     });
   }
 
-  /** Stop and forget a connection's monitor (upload / disconnect / close). */
+  /**
+   * Stop and forget a connection's monitor (upload / disconnect / close).
+   *
+   * `arduino-cli monitor` spawns a separate pluggable serial-monitor tool that
+   * is the process actually holding the port. On Windows a plain child.kill()
+   * leaves that grandchild alive — so the port stays busy until the board is
+   * unplugged. Kill the whole process tree instead.
+   */
   close(connectionId: string): void {
     const child = this.monitors.get(connectionId);
-    if (child) {
-      try {
-        child.kill();
-      } catch {
-        /* already gone */
+    if (!child) return;
+    this.monitors.delete(connectionId);
+    try {
+      if (process.platform === "win32" && child.pid) {
+        execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], () => {
+          /* best-effort; ignore errors if already exited */
+        });
+      } else {
+        child.kill("SIGKILL");
       }
-      this.monitors.delete(connectionId);
+    } catch {
+      /* already gone */
     }
   }
 }
