@@ -175,6 +175,27 @@ export class TinyServiceClient {
   }
 
   /**
+   * Open the serial monitor on a port at a baud rate
+   */
+  serialOpen(port: string, baud: number): void {
+    this.send(MessageFactory.serialOpen(port, baud));
+  }
+
+  /**
+   * Close the serial monitor
+   */
+  serialClose(): void {
+    this.send(MessageFactory.serialClose());
+  }
+
+  /**
+   * Send a line to the serial port
+   */
+  serialWrite(data: string): void {
+    this.send(MessageFactory.serialWrite(data));
+  }
+
+  /**
    * Register a message handler
    */
   onMessage(handler: MessageHandler): () => void {

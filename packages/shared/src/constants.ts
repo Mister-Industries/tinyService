@@ -11,6 +11,9 @@ export const ACTIONS = {
   LIB_LIST: "lib-list" as const,
   LIB_INSTALL: "lib-install" as const,
   LIB_UNINSTALL: "lib-uninstall" as const,
+  SERIAL_OPEN: "serial-open" as const,
+  SERIAL_CLOSE: "serial-close" as const,
+  SERIAL_WRITE: "serial-write" as const,
 };
 
 /**

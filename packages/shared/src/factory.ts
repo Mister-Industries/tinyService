@@ -123,6 +123,36 @@ export class MessageFactory {
   }
 
   /**
+   * Open the serial monitor on a port at a baud rate
+   */
+  static serialOpen(port: string, baud: number): IncomingMessage {
+    return {
+      action: ACTIONS.SERIAL_OPEN,
+      payload: { sketchPath: "", board: "", port, baud },
+    };
+  }
+
+  /**
+   * Close the serial monitor
+   */
+  static serialClose(): IncomingMessage {
+    return {
+      action: ACTIONS.SERIAL_CLOSE,
+      payload: { sketchPath: "", board: "" },
+    };
+  }
+
+  /**
+   * Send a line to the serial port
+   */
+  static serialWrite(data: string): IncomingMessage {
+    return {
+      action: ACTIONS.SERIAL_WRITE,
+      payload: { sketchPath: "", board: "", data },
+    };
+  }
+
+  /**
    * Create a status response message
    */
   static status(action: string, data: StatusData): OutgoingMessage {

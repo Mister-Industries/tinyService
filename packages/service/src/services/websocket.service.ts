@@ -7,6 +7,7 @@ import { BoardsHandler } from "../handlers/boards.handler.js";
 import { CompileHandler } from "../handlers/compile.handler.js";
 import { handleInstallCores } from "../handlers/install-cores.handler.js";
 import { LibraryHandler } from "../handlers/library.handler.js";
+import { SerialHandler } from "../handlers/serial.handler.js";
 import { UploadHandler } from "../handlers/upload.handler.js";
 import { ArduinoCliService } from "./arduino-cli.service.js";
 
@@ -22,6 +23,7 @@ export class WebSocketService {
   private uploadHandler: UploadHandler;
   private boardsHandler: BoardsHandler;
   private libraryHandler: LibraryHandler;
+  private serialHandler: SerialHandler;
   private arduinoService: ArduinoCliService;
 
   constructor(server: any) {
@@ -38,6 +40,7 @@ export class WebSocketService {
     this.uploadHandler = new UploadHandler();
     this.boardsHandler = new BoardsHandler();
     this.libraryHandler = new LibraryHandler();
+    this.serialHandler = new SerialHandler();
     this.arduinoService = new ArduinoCliService();
 
     this.setupWebSocketServer();
@@ -92,6 +95,7 @@ export class WebSocketService {
 
       connection.on("close", () => {
         logger.info(`WebSocket connection closed: ${connection.id}`);
+        this.serialHandler.close(connection.id);
         this.connections.delete(connection.id);
       });
 
@@ -123,6 +127,14 @@ export class WebSocketService {
           break;
 
         case "upload":
+          // The serial monitor holds the port exclusively; release it first so
+          // the upload can open the port, then tell the client it closed.
+          this.serialHandler.close(connection.id);
+          this.sendMessage(connection, {
+            type: "complete",
+            action: "serial",
+            data: { success: true, message: "closed", closed: true },
+          });
           await this.uploadHandler.handle(
             connection,
             message,
@@ -155,6 +167,16 @@ export class WebSocketService {
         case "lib-install":
         case "lib-uninstall":
           await this.libraryHandler.handle(
+            connection,
+            message,
+            this.sendMessage.bind(this)
+          );
+          break;
+
+        case "serial-open":
+        case "serial-close":
+        case "serial-write":
+          await this.serialHandler.handle(
             connection,
             message,
             this.sendMessage.bind(this)

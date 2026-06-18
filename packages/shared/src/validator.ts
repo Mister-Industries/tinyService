@@ -36,6 +36,9 @@ export class MessageValidator {
       ACTIONS.LIB_LIST,
       ACTIONS.LIB_INSTALL,
       ACTIONS.LIB_UNINSTALL,
+      ACTIONS.SERIAL_OPEN,
+      ACTIONS.SERIAL_CLOSE,
+      ACTIONS.SERIAL_WRITE,
     ];
 
     if (!validActions.includes(data.action)) {
@@ -107,6 +110,21 @@ export class MessageValidator {
             valid: false,
             error: "library is required and must be a string",
           };
+        }
+        break;
+
+      case ACTIONS.SERIAL_OPEN:
+        if (!payload.port || typeof payload.port !== "string") {
+          return { valid: false, error: "port is required for serial-open" };
+        }
+        break;
+
+      case ACTIONS.SERIAL_CLOSE:
+        break;
+
+      case ACTIONS.SERIAL_WRITE:
+        if (typeof payload.data !== "string") {
+          return { valid: false, error: "data is required for serial-write" };
         }
         break;
     }

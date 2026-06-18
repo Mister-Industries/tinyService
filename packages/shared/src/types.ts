@@ -10,7 +10,10 @@ export type ActionType =
   | "lib-search"
   | "lib-list"
   | "lib-install"
-  | "lib-uninstall";
+  | "lib-uninstall"
+  | "serial-open"
+  | "serial-close"
+  | "serial-write";
 
 /**
  * Message types for server responses
@@ -30,6 +33,10 @@ export interface IncomingMessage {
     library?: string;
     /** Library manager: optional version for lib-install */
     version?: string;
+    /** Serial monitor: baud rate (serial-open) */
+    baud?: number;
+    /** Serial monitor: line to send (serial-write) */
+    data?: string;
   };
 }
 
