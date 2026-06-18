@@ -147,6 +147,34 @@ export class TinyServiceClient {
   }
 
   /**
+   * Search the Arduino library index
+   */
+  libSearch(query: string): void {
+    this.send(MessageFactory.libSearch(query));
+  }
+
+  /**
+   * List installed libraries
+   */
+  libList(): void {
+    this.send(MessageFactory.libList());
+  }
+
+  /**
+   * Install a library (optionally pinned to a version)
+   */
+  libInstall(library: string, version?: string): void {
+    this.send(MessageFactory.libInstall(library, version));
+  }
+
+  /**
+   * Uninstall a library
+   */
+  libUninstall(library: string): void {
+    this.send(MessageFactory.libUninstall(library));
+  }
+
+  /**
    * Register a message handler
    */
   onMessage(handler: MessageHandler): () => void {

@@ -32,6 +32,10 @@ export class MessageValidator {
       ACTIONS.VERIFY,
       ACTIONS.LIST_BOARDS,
       ACTIONS.INSTALL_CORES,
+      ACTIONS.LIB_SEARCH,
+      ACTIONS.LIB_LIST,
+      ACTIONS.LIB_INSTALL,
+      ACTIONS.LIB_UNINSTALL,
     ];
 
     if (!validActions.includes(data.action)) {
@@ -89,6 +93,21 @@ export class MessageValidator {
 
       case ACTIONS.INSTALL_CORES:
         // No specific validation needed for install-cores
+        break;
+
+      case ACTIONS.LIB_LIST:
+        // No specific validation needed for lib-list
+        break;
+
+      case ACTIONS.LIB_SEARCH:
+      case ACTIONS.LIB_INSTALL:
+      case ACTIONS.LIB_UNINSTALL:
+        if (!payload.library || typeof payload.library !== "string") {
+          return {
+            valid: false,
+            error: "library is required and must be a string",
+          };
+        }
         break;
     }
 

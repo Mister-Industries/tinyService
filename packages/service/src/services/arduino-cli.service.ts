@@ -52,8 +52,41 @@ export class ArduinoCliService {
     );
   }
 
+  private readonly tinyCoreFqbn = "tinyCore:esp32:tiny_core_esp32s3_nopsram";
+
   /**
-   * List connected boards
+   * Identify a board from its USB VID/PID when arduino-cli has no matching core
+   * definition for the port (e.g. CH340/CP210x clones, or before the tinyCore
+   * platform is installed). Returns a best-guess FQBN + name, or null.
+   */
+  private identifyByUsb(
+    vidRaw: string,
+    pidRaw: string
+  ): { fqbn: string; name: string } | null {
+    const vid = vidRaw.toUpperCase().replace(/^0X/, "");
+    const pid = pidRaw.toUpperCase().replace(/^0X/, "");
+    // Espressif native USB (ESP32-S3, incl. tinyCore)
+    if (vid === "303A")
+      return { fqbn: this.tinyCoreFqbn, name: "tinyCore (ESP32-S3)" };
+    // Genuine Arduino Uno
+    if (
+      (vid === "2341" || vid === "2A03") &&
+      ["0043", "0001", "0243", "006A"].includes(pid)
+    )
+      return { fqbn: "arduino:avr:uno", name: "Arduino Uno" };
+    // CH340 serial bridge — overwhelmingly an Uno clone in this ecosystem
+    if (vid === "1A86" && (pid === "7523" || pid === "5523"))
+      return { fqbn: "arduino:avr:uno", name: "Arduino Uno (CH340)" };
+    // CP210x serial bridge — board type unknown, let the user choose
+    if (vid === "10C4" && pid === "EA60")
+      return { fqbn: "", name: "Serial device (CP210x)" };
+    return null;
+  }
+
+  /**
+   * List connected boards. Includes ports arduino-cli can identify outright
+   * (matching_boards) AND USB serial ports it can't (CH340/CP210x clones),
+   * matched heuristically by VID/PID so they're still selectable.
    */
   async listBoards(): Promise<BoardInfo[]> {
     try {
@@ -69,8 +102,6 @@ export class ArduinoCliService {
         return [];
       }
 
-      console.log("Arduino CLI list boards output:", result.output);
-
       const boardsData = JSON.parse(result.output);
       const boards: BoardInfo[] = [];
 
@@ -79,31 +110,46 @@ export class ArduinoCliService {
         Array.isArray(boardsData.detected_ports)
       ) {
         for (const port of boardsData.detected_ports) {
+          const address: string | undefined = port.port?.address || undefined;
+          if (!address) continue;
+
           if (port.matching_boards && port.matching_boards.length > 0) {
-            // Prioritize tinyCore boards over generic esp32 boards
-            // If multiple matching boards exist for the same port, prefer tinyCore
+            // Prioritize tinyCore boards over generic esp32 boards when a port
+            // matches multiple cores.
             const tinyCoreBoard = port.matching_boards.find((mb: any) =>
               mb.fqbn.startsWith("tinyCore:")
             );
-
             if (tinyCoreBoard) {
-              // Use tinyCore board if available
               boards.push({
                 fqbn: tinyCoreBoard.fqbn,
                 name: tinyCoreBoard.name,
-                port: port.port?.address || undefined,
+                port: address,
               });
             } else {
-              // Otherwise, add all matching boards
               for (const matchingBoard of port.matching_boards) {
                 boards.push({
                   fqbn: matchingBoard.fqbn,
                   name: matchingBoard.name,
-                  port: port?.port.address || undefined,
+                  port: address,
                 });
               }
             }
+            continue;
           }
+
+          // No core matched — fall back to USB VID/PID identification so clone
+          // boards (very common for the Uno) are still offered to the user.
+          const props = port.port?.properties || {};
+          const vid: string = props.vid || props.VID || "";
+          const pid: string = props.pid || props.PID || "";
+          if (!vid || !pid) continue; // skip non-USB ports (Bluetooth, AMT, …)
+
+          const guess = this.identifyByUsb(vid, pid);
+          boards.push({
+            fqbn: guess?.fqbn || "",
+            name: guess?.name || `Serial device (${address})`,
+            port: address,
+          });
         }
       }
 
@@ -113,6 +159,90 @@ export class ArduinoCliService {
       logger.error("Error parsing boards list:", error);
       return [];
     }
+  }
+
+  /**
+   * Search the Arduino library index. Returns up to 30 matches.
+   */
+  async searchLibraries(query: string): Promise<
+    Array<{ name: string; author: string; sentence: string; version: string }>
+  > {
+    const result = await this.executeCommand([
+      "lib",
+      "search",
+      query,
+      "--format",
+      "json",
+    ]);
+    if (!result.success) return [];
+    try {
+      const data = JSON.parse(result.output);
+      const libs = (data.libraries || []) as any[];
+      return libs.slice(0, 30).map((l) => {
+        const latest = l.latest || {};
+        return {
+          name: l.name || "",
+          author: latest.author || "",
+          sentence: latest.sentence || "",
+          version: latest.version || "",
+        };
+      });
+    } catch (error) {
+      logger.error("Error parsing library search:", error);
+      return [];
+    }
+  }
+
+  /**
+   * List installed libraries.
+   */
+  async listLibraries(): Promise<
+    Array<{ name: string; author: string; sentence: string; version: string }>
+  > {
+    const result = await this.executeCommand([
+      "lib",
+      "list",
+      "--format",
+      "json",
+    ]);
+    if (!result.success) return [];
+    try {
+      const data = JSON.parse(result.output);
+      const installed = (data.installed_libraries || []) as any[];
+      return installed.map((entry) => {
+        const lib = entry.library || {};
+        return {
+          name: lib.name || "",
+          author: lib.author || "",
+          sentence: lib.sentence || "",
+          version: lib.version || "",
+        };
+      });
+    } catch (error) {
+      logger.error("Error parsing library list:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Install a library by name (optionally pinned to a version).
+   */
+  async installLibrary(
+    name: string,
+    version: string | undefined,
+    onOutput?: (data: string) => void
+  ): Promise<ArduinoCliResult> {
+    const spec = version ? `${name}@${version}` : name;
+    logger.info(`Installing library: ${spec}`);
+    return this.executeCommand(["lib", "install", spec], onOutput);
+  }
+
+  /**
+   * Uninstall a library by name.
+   */
+  async uninstallLibrary(name: string): Promise<ArduinoCliResult> {
+    logger.info(`Uninstalling library: ${name}`);
+    return this.executeCommand(["lib", "uninstall", name]);
   }
 
   /**

@@ -6,6 +6,7 @@ import { logger } from "../config.js";
 import { BoardsHandler } from "../handlers/boards.handler.js";
 import { CompileHandler } from "../handlers/compile.handler.js";
 import { handleInstallCores } from "../handlers/install-cores.handler.js";
+import { LibraryHandler } from "../handlers/library.handler.js";
 import { UploadHandler } from "../handlers/upload.handler.js";
 import { ArduinoCliService } from "./arduino-cli.service.js";
 
@@ -20,6 +21,7 @@ export class WebSocketService {
   private compileHandler: CompileHandler;
   private uploadHandler: UploadHandler;
   private boardsHandler: BoardsHandler;
+  private libraryHandler: LibraryHandler;
   private arduinoService: ArduinoCliService;
 
   constructor(server: any) {
@@ -35,6 +37,7 @@ export class WebSocketService {
     this.compileHandler = new CompileHandler();
     this.uploadHandler = new UploadHandler();
     this.boardsHandler = new BoardsHandler();
+    this.libraryHandler = new LibraryHandler();
     this.arduinoService = new ArduinoCliService();
 
     this.setupWebSocketServer();
@@ -145,6 +148,17 @@ export class WebSocketService {
 
         case "install-cores":
           await handleInstallCores(connection, this.arduinoService);
+          break;
+
+        case "lib-search":
+        case "lib-list":
+        case "lib-install":
+        case "lib-uninstall":
+          await this.libraryHandler.handle(
+            connection,
+            message,
+            this.sendMessage.bind(this)
+          );
           break;
 
         default:

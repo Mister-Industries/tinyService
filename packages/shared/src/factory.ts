@@ -83,6 +83,46 @@ export class MessageFactory {
   }
 
   /**
+   * Create a library search request message
+   */
+  static libSearch(query: string): IncomingMessage {
+    return {
+      action: ACTIONS.LIB_SEARCH,
+      payload: { sketchPath: "", board: "", library: query },
+    };
+  }
+
+  /**
+   * Create a list-installed-libraries request message
+   */
+  static libList(): IncomingMessage {
+    return {
+      action: ACTIONS.LIB_LIST,
+      payload: { sketchPath: "", board: "" },
+    };
+  }
+
+  /**
+   * Create a library install request message
+   */
+  static libInstall(library: string, version?: string): IncomingMessage {
+    return {
+      action: ACTIONS.LIB_INSTALL,
+      payload: { sketchPath: "", board: "", library, version },
+    };
+  }
+
+  /**
+   * Create a library uninstall request message
+   */
+  static libUninstall(library: string): IncomingMessage {
+    return {
+      action: ACTIONS.LIB_UNINSTALL,
+      payload: { sketchPath: "", board: "", library },
+    };
+  }
+
+  /**
    * Create a status response message
    */
   static status(action: string, data: StatusData): OutgoingMessage {

@@ -7,6 +7,10 @@ export const ACTIONS = {
   VERIFY: "verify" as const,
   LIST_BOARDS: "list-boards" as const,
   INSTALL_CORES: "install-cores" as const,
+  LIB_SEARCH: "lib-search" as const,
+  LIB_LIST: "lib-list" as const,
+  LIB_INSTALL: "lib-install" as const,
+  LIB_UNINSTALL: "lib-uninstall" as const,
 };
 
 /**

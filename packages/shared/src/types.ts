@@ -6,7 +6,11 @@ export type ActionType =
   | "upload"
   | "list-boards"
   | "verify"
-  | "install-cores";
+  | "install-cores"
+  | "lib-search"
+  | "lib-list"
+  | "lib-install"
+  | "lib-uninstall";
 
 /**
  * Message types for server responses
@@ -22,7 +26,22 @@ export interface IncomingMessage {
     sketchPath: string;
     board: string; // FQBN format
     port?: string;
+    /** Library manager: search term (lib-search) or library name (install/uninstall) */
+    library?: string;
+    /** Library manager: optional version for lib-install */
+    version?: string;
   };
+}
+
+/**
+ * Library metadata returned by lib-search / lib-list
+ */
+export interface LibraryInfo {
+  name: string;
+  author: string;
+  sentence: string;
+  version: string;
+  installed?: boolean;
 }
 
 /**
