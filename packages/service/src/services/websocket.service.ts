@@ -127,9 +127,10 @@ export class WebSocketService {
           break;
 
         case "upload":
-          // The serial monitor holds the port exclusively; release it first so
-          // the upload can open the port, then tell the client it closed.
-          this.serialHandler.close(connection.id);
+          // The serial monitor holds the port exclusively; release it (and wait
+          // for the process to actually die) so the upload can open the port,
+          // then tell the client it closed.
+          await this.serialHandler.close(connection.id);
           this.sendMessage(connection, {
             type: "complete",
             action: "serial",

@@ -32,7 +32,7 @@ export class SerialHandler {
     }
 
     if (action === "serial-close") {
-      this.close(connection.id);
+      await this.close(connection.id);
       sendMessage(connection, {
         type: "complete",
         action: "serial",
@@ -44,7 +44,11 @@ export class SerialHandler {
     // serial-open
     const port = message.payload.port || "";
     const baud = message.payload.baud || 9600;
-    this.close(connection.id); // release any existing monitor first
+    // Release any existing monitor AND wait for the process tree to actually die
+    // before spawning a new one — otherwise the new monitor races the old one
+    // for the (exclusive) port and fails with "command 'open' failed: busy".
+    await this.close(connection.id);
+    await new Promise((r) => setTimeout(r, 250));
 
     logger.info(`Opening serial monitor on ${port} @ ${baud}`);
     const child = spawn(
@@ -58,12 +62,15 @@ export class SerialHandler {
       for (const line of text.split(/\r?\n/)) {
         const t = line.trim();
         if (!t) continue;
-        // Skip arduino-cli's own monitor banner/info lines.
+        // Skip arduino-cli's own monitor banner/info/error noise so it doesn't
+        // clutter the serial console (the "busy" line in particular).
         if (
           t.startsWith("Connected to") ||
           t.startsWith("Monitor port settings") ||
           t.startsWith("Press CTRL-C") ||
           t.startsWith("Disconnected") ||
+          t.startsWith("Port monitor error") ||
+          t.includes("command 'open' failed") ||
           /^baudrate\b/.test(t)
         )
           continue;
@@ -110,20 +117,33 @@ export class SerialHandler {
    * leaves that grandchild alive — so the port stays busy until the board is
    * unplugged. Kill the whole process tree instead.
    */
-  close(connectionId: string): void {
+  close(connectionId: string): Promise<void> {
     const child = this.monitors.get(connectionId);
-    if (!child) return;
+    if (!child) return Promise.resolve();
     this.monitors.delete(connectionId);
-    try {
-      if (process.platform === "win32" && child.pid) {
-        execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], () => {
-          /* best-effort; ignore errors if already exited */
-        });
-      } else {
-        child.kill("SIGKILL");
+    return new Promise<void>((resolve) => {
+      let done = false;
+      const finish = (): void => {
+        if (!done) {
+          done = true;
+          resolve();
+        }
+      };
+      child.once("exit", finish);
+      child.once("close", finish);
+      try {
+        if (process.platform === "win32" && child.pid) {
+          execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], () => {
+            /* best-effort; the exit/close listeners resolve us */
+          });
+        } else {
+          child.kill("SIGKILL");
+        }
+      } catch {
+        finish();
       }
-    } catch {
-      /* already gone */
-    }
+      // Safety net in case the exit event never fires.
+      setTimeout(finish, 1500);
+    });
   }
 }
