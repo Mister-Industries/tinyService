@@ -1,36 +1,47 @@
 {
-  "name": "tinyservice-monorepo",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Monorepo for TinyService - Arduino WebSocket Service and Web Client",
+  "name": "@tinyservice/monorepo",
+  "keywords": [
+    "arduino",
+    "esp32",
+    "esp8266",
+    "iot",
+    "microcontroller",
+    "server",
+    "tinyService",
+    "tinyCore"
+  ],
+  "author": "Ethan Eckhardt",
+  "bugs": {
+    "url": "https://github.com/Mister-Industries/tinyService/issues"
+  },
+  "homepage": "https://github.com/Mister-Industries/tinyService#readme",
+  "description": "A monorepo for tinyService, a Node.js based service to provide arduino compile and upload capabilities for IDEs",
+  "scripts": {
+    "build": "turbo build",
+    "test": "turbo test",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "lint-staged": "lint-staged",
+    "prepare": "husky"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@11.6.2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mister-Industries/tinyService.git"
+  },
   "workspaces": [
     "packages/*"
   ],
-  "scripts": {
-    "dev:service": "npm run dev --workspace=packages/service",
-    "dev:client": "npm run dev --workspace=packages/client",
-    "dev": "npm run dev:service & npm run dev:client",
-    "build:shared": "npm run build --workspace=packages/shared",
-    "build:service": "npm run build --workspace=packages/service",
-    "build:client": "npm run build --workspace=packages/client",
-    "build": "npm run build:shared && npm run build:service && npm run build:client",
-    "start:service": "npm run start --workspace=packages/service",
-    "start:client": "npm run preview --workspace=packages/client",
-    "lint": "npm run lint --workspaces",
-    "lint:fix": "npm run lint:fix --workspaces"
-  },
-  "keywords": [
-    "monorepo",
-    "arduino",
-    "websocket",
-    "react",
-    "vite",
-    "typescript",
-    "compilation"
-  ],
-  "author": "",
-  "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=7.0.0"
+  "devDependencies": {
+    "@tinyservice/eslint-config": "*",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2",
+    "turbo": "^2.6.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.8"
   }
 }

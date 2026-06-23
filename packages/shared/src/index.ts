@@ -19,8 +19,9 @@ export type {
 } from "./client.js";
 
 // React hooks (optional, requires React as peer dependency)
-export { useTinyService } from "./hooks/useTinyService.js";
-export type {
-  UseTinyServiceOptions,
-  UseTinyServiceReturn,
-} from "./hooks/useTinyService.js";
+// Note: Import directly from '@mister-industries/shared/hooks/useTinyService.js' if needed
+// export { useTinyService } from "./hooks/useTinyService.js";
+// export type {
+//   UseTinyServiceOptions,
+//   UseTinyServiceReturn,
+// } from "./hooks/useTinyService.js";

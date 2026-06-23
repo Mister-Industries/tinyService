@@ -1,0 +1,4 @@
+export PATH="/opt/homebrew/opt/node@24/bin:/opt/homebrew/bin:$PATH"
+
+npm run test
+npx turbo lint-staged
