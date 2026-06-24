@@ -1,5 +1,9 @@
 import { logger } from "../config.js";
 import { ArduinoCliService } from "../services/arduino-cli.service.js";
+import {
+  materializeSketch,
+  type MaterializedSketch,
+} from "../services/sketch-workspace.js";
 import type {
   IncomingMessage,
   OutgoingMessage,
@@ -21,29 +25,46 @@ export class CompileHandler {
       message: OutgoingMessage
     ) => void
   ): Promise<void> {
-    const { sketchPath, board } = message.payload;
+    const { sketchPath, board, files, sketchName } = message.payload;
 
-    if (!sketchPath || !board) {
+    if ((!sketchPath && !files) || !board) {
       sendMessage(connection, {
         type: "error",
         action: "compile",
-        data: { error: "Missing required parameters: sketchPath and board" },
+        data: {
+          error: "Missing required parameters: (sketchPath or files) and board",
+        },
       });
       return;
     }
 
-    logger.info(`Starting compilation for ${sketchPath} with board ${board}`);
-
-    // Send status update
-    sendMessage(connection, {
-      type: "status",
-      action: "compile",
-      data: { message: "Starting compilation...", sketchPath, board },
-    });
-
+    // Web build: the sketch arrives as file contents with no real path — write
+    // it to a temp dir so arduino-cli has something to compile.
+    let materialized: MaterializedSketch | null = null;
+    let effectiveSketchPath = sketchPath;
     try {
+      if (files) {
+        materialized = await materializeSketch(files, sketchName);
+        effectiveSketchPath = materialized.sketchPath;
+      }
+
+      logger.info(
+        `Starting compilation for ${effectiveSketchPath} with board ${board}`
+      );
+
+      // Send status update
+      sendMessage(connection, {
+        type: "status",
+        action: "compile",
+        data: {
+          message: "Starting compilation...",
+          sketchPath: effectiveSketchPath,
+          board,
+        },
+      });
+
       const result = await this.arduinoService.compile(
-        sketchPath,
+        effectiveSketchPath,
         board,
         (output: string) => {
           // Stream real-time output to client
@@ -62,12 +83,12 @@ export class CompileHandler {
           data: {
             success: true,
             message: "Compilation completed successfully",
-            sketchPath,
+            sketchPath: effectiveSketchPath,
             board,
             output: result.output,
           },
         });
-        logger.info(`Compilation successful for ${sketchPath}`);
+        logger.info(`Compilation successful for ${effectiveSketchPath}`);
       } else {
         sendMessage(connection, {
           type: "error",
@@ -77,7 +98,10 @@ export class CompileHandler {
             output: result.output,
           },
         });
-        logger.error(`Compilation failed for ${sketchPath}:`, result.error);
+        logger.error(
+          `Compilation failed for ${effectiveSketchPath}:`,
+          result.error
+        );
       }
     } catch (error) {
       const errorMessage =
@@ -87,7 +111,9 @@ export class CompileHandler {
         action: "compile",
         data: { error: `Compilation error: ${errorMessage}` },
       });
-      logger.error(`Compilation error for ${sketchPath}:`, error);
+      logger.error(`Compilation error for ${effectiveSketchPath}:`, error);
+    } finally {
+      await materialized?.cleanup();
     }
   }
 
@@ -99,29 +125,45 @@ export class CompileHandler {
       message: OutgoingMessage
     ) => void
   ): Promise<void> {
-    const { sketchPath, board } = message.payload;
+    const { sketchPath, board, files, sketchName } = message.payload;
 
-    if (!sketchPath || !board) {
+    if ((!sketchPath && !files) || !board) {
       sendMessage(connection, {
         type: "error",
         action: "verify",
-        data: { error: "Missing required parameters: sketchPath and board" },
+        data: {
+          error: "Missing required parameters: (sketchPath or files) and board",
+        },
       });
       return;
     }
 
-    logger.info(`Starting verification for ${sketchPath} with board ${board}`);
-
-    // Send status update
-    sendMessage(connection, {
-      type: "status",
-      action: "verify",
-      data: { message: "Starting verification...", sketchPath, board },
-    });
-
+    // Web build: materialize the inline sketch to a temp dir (see handle()).
+    let materialized: MaterializedSketch | null = null;
+    let effectiveSketchPath = sketchPath;
     try {
+      if (files) {
+        materialized = await materializeSketch(files, sketchName);
+        effectiveSketchPath = materialized.sketchPath;
+      }
+
+      logger.info(
+        `Starting verification for ${effectiveSketchPath} with board ${board}`
+      );
+
+      // Send status update
+      sendMessage(connection, {
+        type: "status",
+        action: "verify",
+        data: {
+          message: "Starting verification...",
+          sketchPath: effectiveSketchPath,
+          board,
+        },
+      });
+
       const result = await this.arduinoService.verify(
-        sketchPath,
+        effectiveSketchPath,
         board,
         (output: string) => {
           // Stream real-time output to client
@@ -140,12 +182,12 @@ export class CompileHandler {
           data: {
             success: true,
             message: "Verification completed successfully",
-            sketchPath,
+            sketchPath: effectiveSketchPath,
             board,
             output: result.output,
           },
         });
-        logger.info(`Verification successful for ${sketchPath}`);
+        logger.info(`Verification successful for ${effectiveSketchPath}`);
       } else {
         sendMessage(connection, {
           type: "error",
@@ -155,7 +197,10 @@ export class CompileHandler {
             output: result.output,
           },
         });
-        logger.error(`Verification failed for ${sketchPath}:`, result.error);
+        logger.error(
+          `Verification failed for ${effectiveSketchPath}:`,
+          result.error
+        );
       }
     } catch (error) {
       const errorMessage =
@@ -165,7 +210,9 @@ export class CompileHandler {
         action: "verify",
         data: { error: `Verification error: ${errorMessage}` },
       });
-      logger.error(`Verification error for ${sketchPath}:`, error);
+      logger.error(`Verification error for ${effectiveSketchPath}:`, error);
+    } finally {
+      await materialized?.cleanup();
     }
   }
 }

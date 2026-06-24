@@ -245,6 +245,150 @@ export class ArduinoCliService {
     return this.executeCommand(["lib", "uninstall", name]);
   }
 
+  // ── Boards Manager: platforms (cores) ──────────────────────────────────────
+
+  /**
+   * Normalize an arduino-cli platform entry (from `core search`/`core list`)
+   * into the flat PlatformInfo shape the client expects. The human-readable
+   * name lives inside the release matching the latest/installed version.
+   */
+  private normalizePlatform(p: any): {
+    id: string;
+    name: string;
+    installed: string;
+    latest: string;
+    maintainer: string;
+  } {
+    const installed: string = p.installed_version || "";
+    const latest: string = p.latest_version || "";
+    const releases = p.releases || {};
+    const release =
+      releases[latest] ||
+      releases[installed] ||
+      releases[Object.keys(releases).pop() as string] ||
+      {};
+    return {
+      id: p.id || "",
+      name: release.name || p.id || "",
+      installed,
+      latest,
+      maintainer: p.maintainer || "",
+    };
+  }
+
+  /**
+   * Search the platform (core) index. Returns installable platforms, including
+   * any from configured additional board-manager URLs.
+   */
+  async searchCores(query: string): Promise<
+    Array<{ id: string; name: string; installed: string; latest: string; maintainer: string }>
+  > {
+    const result = await this.executeCommand([
+      "core",
+      "search",
+      query,
+      "--format",
+      "json",
+    ]);
+    if (!result.success) return [];
+    try {
+      const platforms = (JSON.parse(result.output).platforms || []) as any[];
+      return platforms.map((p) => this.normalizePlatform(p));
+    } catch (error) {
+      logger.error("Error parsing core search:", error);
+      return [];
+    }
+  }
+
+  /**
+   * List installed platforms (cores).
+   */
+  async listInstalledCores(): Promise<
+    Array<{ id: string; name: string; installed: string; latest: string; maintainer: string }>
+  > {
+    const result = await this.executeCommand([
+      "core",
+      "list",
+      "--format",
+      "json",
+    ]);
+    if (!result.success) return [];
+    try {
+      const platforms = (JSON.parse(result.output).platforms || []) as any[];
+      return platforms.map((p) => this.normalizePlatform(p));
+    } catch (error) {
+      logger.error("Error parsing core list:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Uninstall a platform (core) by id, e.g. "esp32:esp32".
+   */
+  async uninstallCore(packageName: string): Promise<ArduinoCliResult> {
+    logger.info(`Uninstalling core package: ${packageName}`);
+    return this.executeCommand(["core", "uninstall", packageName]);
+  }
+
+  /**
+   * List every board (FQBN) provided by the installed platforms. This is the
+   * source for the manual board-type override in the Boards Manager.
+   */
+  async listAllBoards(): Promise<Array<{ name: string; fqbn: string }>> {
+    const result = await this.executeCommand([
+      "board",
+      "listall",
+      "--format",
+      "json",
+    ]);
+    if (!result.success) return [];
+    try {
+      const boards = (JSON.parse(result.output).boards || []) as any[];
+      return boards
+        .filter((b) => b.fqbn)
+        .map((b) => ({ name: b.name || b.fqbn, fqbn: b.fqbn }));
+    } catch (error) {
+      logger.error("Error parsing board listall:", error);
+      return [];
+    }
+  }
+
+  // ── Boards Manager: additional board-manager URLs ──────────────────────────
+
+  /**
+   * List the configured additional board-manager URLs.
+   */
+  async listBoardUrls(): Promise<string[]> {
+    const result = await this.executeCommand([
+      "config",
+      "get",
+      "board_manager.additional_urls",
+      "--format",
+      "json",
+    ]);
+    if (!result.success) return [];
+    try {
+      const parsed = JSON.parse(result.output);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      logger.error("Error parsing board URLs:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Remove an additional board-manager URL.
+   */
+  async removeBoardUrl(url: string): Promise<ArduinoCliResult> {
+    logger.info(`Removing board manager URL: ${url}`);
+    return this.executeCommand([
+      "config",
+      "remove",
+      "board_manager.additional_urls",
+      url,
+    ]);
+  }
+
   /**
    * Check if Arduino CLI is available
    */

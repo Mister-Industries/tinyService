@@ -36,6 +36,14 @@ export class MessageValidator {
       ACTIONS.LIB_LIST,
       ACTIONS.LIB_INSTALL,
       ACTIONS.LIB_UNINSTALL,
+      ACTIONS.CORE_SEARCH,
+      ACTIONS.CORE_LIST,
+      ACTIONS.CORE_INSTALL,
+      ACTIONS.CORE_UNINSTALL,
+      ACTIONS.BOARD_LISTALL,
+      ACTIONS.BOARD_URL_LIST,
+      ACTIONS.BOARD_URL_ADD,
+      ACTIONS.BOARD_URL_REMOVE,
       ACTIONS.SERIAL_OPEN,
       ACTIONS.SERIAL_CLOSE,
       ACTIONS.SERIAL_WRITE,
@@ -54,13 +62,9 @@ export class MessageValidator {
     // Validate based on action type
     switch (data.action) {
       case ACTIONS.COMPILE:
-      case ACTIONS.VERIFY:
-        if (!payload.sketchPath || typeof payload.sketchPath !== "string") {
-          return {
-            valid: false,
-            error: "sketchPath is required and must be a string",
-          };
-        }
+      case ACTIONS.VERIFY: {
+        const filesError = this.validateSketchSource(payload);
+        if (filesError) return filesError;
         if (!payload.board || typeof payload.board !== "string") {
           return {
             valid: false,
@@ -68,14 +72,11 @@ export class MessageValidator {
           };
         }
         break;
+      }
 
-      case ACTIONS.UPLOAD:
-        if (!payload.sketchPath || typeof payload.sketchPath !== "string") {
-          return {
-            valid: false,
-            error: "sketchPath is required and must be a string",
-          };
-        }
+      case ACTIONS.UPLOAD: {
+        const filesError = this.validateSketchSource(payload);
+        if (filesError) return filesError;
         if (!payload.board || typeof payload.board !== "string") {
           return {
             valid: false,
@@ -89,6 +90,7 @@ export class MessageValidator {
           };
         }
         break;
+      }
 
       case ACTIONS.LIST_BOARDS:
         // No specific validation needed for list-boards
@@ -113,6 +115,33 @@ export class MessageValidator {
         }
         break;
 
+      case ACTIONS.CORE_LIST:
+      case ACTIONS.BOARD_LISTALL:
+      case ACTIONS.BOARD_URL_LIST:
+        // No specific validation needed
+        break;
+
+      case ACTIONS.CORE_SEARCH:
+      case ACTIONS.CORE_INSTALL:
+      case ACTIONS.CORE_UNINSTALL:
+        if (!payload.library || typeof payload.library !== "string") {
+          return {
+            valid: false,
+            error: "library (query/platform) is required and must be a string",
+          };
+        }
+        break;
+
+      case ACTIONS.BOARD_URL_ADD:
+      case ACTIONS.BOARD_URL_REMOVE:
+        if (!payload.url || typeof payload.url !== "string") {
+          return {
+            valid: false,
+            error: "url is required and must be a string",
+          };
+        }
+        break;
+
       case ACTIONS.SERIAL_OPEN:
         if (!payload.port || typeof payload.port !== "string") {
           return { valid: false, error: "port is required for serial-open" };
@@ -130,6 +159,44 @@ export class MessageValidator {
     }
 
     return { valid: true };
+  }
+
+  /**
+   * Compile/verify/upload accept the sketch in one of two forms: a real
+   * `sketchPath` on disk (desktop), or an inline `files` map of
+   * { relativePath: content } (web build, which has no real path to give).
+   * Exactly one must be usable.
+   */
+  private static validateSketchSource(payload: any): ValidationResult | null {
+    const hasPath =
+      typeof payload.sketchPath === "string" && payload.sketchPath.length > 0;
+
+    if (payload.files !== undefined) {
+      if (typeof payload.files !== "object" || payload.files === null) {
+        return { valid: false, error: "files must be an object" };
+      }
+      const entries = Object.entries(payload.files);
+      if (entries.length === 0) {
+        return { valid: false, error: "files must not be empty" };
+      }
+      for (const [rel, content] of entries) {
+        if (typeof rel !== "string" || typeof content !== "string") {
+          return {
+            valid: false,
+            error: "files must map string paths to string contents",
+          };
+        }
+      }
+      return null; // files present and well-formed — sketchPath optional
+    }
+
+    if (!hasPath) {
+      return {
+        valid: false,
+        error: "sketchPath or files is required",
+      };
+    }
+    return null;
   }
 
   /**

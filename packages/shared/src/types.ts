@@ -11,6 +11,14 @@ export type ActionType =
   | "lib-list"
   | "lib-install"
   | "lib-uninstall"
+  | "core-search"
+  | "core-list"
+  | "core-install"
+  | "core-uninstall"
+  | "board-listall"
+  | "board-url-list"
+  | "board-url-add"
+  | "board-url-remove"
   | "serial-open"
   | "serial-close"
   | "serial-write";
@@ -29,10 +37,26 @@ export interface IncomingMessage {
     sketchPath: string;
     board: string; // FQBN format
     port?: string;
-    /** Library manager: search term (lib-search) or library name (install/uninstall) */
+    /**
+     * Web build only: the sketch's files as { relativePath: textContent },
+     * relative to the sketch folder (e.g. { "fade.ino": "...", "pitches.h": "..." }).
+     * A browser can't hand the service a real disk path (the File System Access
+     * API hides absolute paths), so it ships the files instead; the service
+     * materializes them to a temp dir and compiles/uploads that. Desktop omits
+     * this and sends a real `sketchPath` on disk.
+     */
+    files?: Record<string, string>;
+    /** Web build: folder name to give the materialized sketch (defaults to the .ino's base name). */
+    sketchName?: string;
+    /**
+     * Library manager: search term (lib-search) or library name (install/uninstall).
+     * Boards manager: search term (core-search) or platform id (core-install/uninstall).
+     */
     library?: string;
-    /** Library manager: optional version for lib-install */
+    /** Library/Boards manager: optional version for lib-install / core-install */
     version?: string;
+    /** Boards manager: additional board-manager URL (board-url-add/remove) */
+    url?: string;
     /** Serial monitor: baud rate (serial-open) */
     baud?: number;
     /** Serial monitor: line to send (serial-write) */
@@ -52,6 +76,22 @@ export interface LibraryInfo {
 }
 
 /**
+ * Platform (core) metadata returned by core-search / core-list
+ */
+export interface PlatformInfo {
+  /** Platform id, e.g. "esp32:esp32" */
+  id: string;
+  /** Human-readable name, e.g. "esp32 Boards" */
+  name: string;
+  /** Installed version (core-list) or empty if not installed */
+  installed: string;
+  /** Latest available version */
+  latest: string;
+  /** Maintainer / author */
+  maintainer?: string;
+}
+
+/**
  * Outgoing message from server to client
  */
 export interface OutgoingMessage {
@@ -66,6 +106,8 @@ export interface OutgoingMessage {
 export interface CompileRequest {
   sketchPath: string;
   board: string;
+  files?: Record<string, string>;
+  sketchName?: string;
 }
 
 /**
@@ -75,6 +117,8 @@ export interface UploadRequest {
   sketchPath: string;
   board: string;
   port: string;
+  files?: Record<string, string>;
+  sketchName?: string;
 }
 
 /**

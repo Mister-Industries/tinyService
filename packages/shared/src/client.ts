@@ -112,24 +112,41 @@ export class TinyServiceClient {
   }
 
   /**
-   * Compile Arduino sketch
+   * Compile Arduino sketch. Desktop passes a real `sketchPath`; the web build
+   * passes `files` (the sketch's contents) since it has no real path to give.
    */
-  compile(sketchPath: string, board: string): void {
-    this.send(MessageFactory.compile(sketchPath, board));
+  compile(
+    sketchPath: string,
+    board: string,
+    files?: Record<string, string>,
+    sketchName?: string
+  ): void {
+    this.send(MessageFactory.compile(sketchPath, board, files, sketchName));
   }
 
   /**
-   * Verify Arduino sketch (compile without upload)
+   * Verify Arduino sketch (compile without upload). See `compile` for `files`.
    */
-  verify(sketchPath: string, board: string): void {
-    this.send(MessageFactory.verify(sketchPath, board));
+  verify(
+    sketchPath: string,
+    board: string,
+    files?: Record<string, string>,
+    sketchName?: string
+  ): void {
+    this.send(MessageFactory.verify(sketchPath, board, files, sketchName));
   }
 
   /**
-   * Upload Arduino sketch to board
+   * Upload Arduino sketch to board. See `compile` for `files`.
    */
-  upload(sketchPath: string, board: string, port: string): void {
-    this.send(MessageFactory.upload(sketchPath, board, port));
+  upload(
+    sketchPath: string,
+    board: string,
+    port: string,
+    files?: Record<string, string>,
+    sketchName?: string
+  ): void {
+    this.send(MessageFactory.upload(sketchPath, board, port, files, sketchName));
   }
 
   /**
@@ -172,6 +189,62 @@ export class TinyServiceClient {
    */
   libUninstall(library: string): void {
     this.send(MessageFactory.libUninstall(library));
+  }
+
+  /**
+   * Search the Arduino platform (core) index
+   */
+  coreSearch(query: string): void {
+    this.send(MessageFactory.coreSearch(query));
+  }
+
+  /**
+   * List installed platforms (cores)
+   */
+  coreList(): void {
+    this.send(MessageFactory.coreList());
+  }
+
+  /**
+   * Install a platform (core), optionally pinned to a version
+   */
+  coreInstall(platform: string, version?: string): void {
+    this.send(MessageFactory.coreInstall(platform, version));
+  }
+
+  /**
+   * Uninstall a platform (core)
+   */
+  coreUninstall(platform: string): void {
+    this.send(MessageFactory.coreUninstall(platform));
+  }
+
+  /**
+   * List every board (FQBN) provided by the installed platforms
+   */
+  boardListall(): void {
+    this.send(MessageFactory.boardListall());
+  }
+
+  /**
+   * List the configured additional board-manager URLs
+   */
+  boardUrlList(): void {
+    this.send(MessageFactory.boardUrlList());
+  }
+
+  /**
+   * Add an additional board-manager URL (then refreshes the core index)
+   */
+  boardUrlAdd(url: string): void {
+    this.send(MessageFactory.boardUrlAdd(url));
+  }
+
+  /**
+   * Remove an additional board-manager URL
+   */
+  boardUrlRemove(url: string): void {
+    this.send(MessageFactory.boardUrlRemove(url));
   }
 
   /**

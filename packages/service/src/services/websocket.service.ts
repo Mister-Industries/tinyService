@@ -3,6 +3,7 @@ import { MessageValidator } from "@mister-industries/shared";
 import { v4 as uuidv4 } from "uuid";
 import WebSocket, { WebSocketServer } from "ws";
 import { logger } from "../config.js";
+import { BoardManagerHandler } from "../handlers/board-manager.handler.js";
 import { BoardsHandler } from "../handlers/boards.handler.js";
 import { CompileHandler } from "../handlers/compile.handler.js";
 import { handleInstallCores } from "../handlers/install-cores.handler.js";
@@ -23,6 +24,7 @@ export class WebSocketService {
   private uploadHandler: UploadHandler;
   private boardsHandler: BoardsHandler;
   private libraryHandler: LibraryHandler;
+  private boardManagerHandler: BoardManagerHandler;
   private serialHandler: SerialHandler;
   private arduinoService: ArduinoCliService;
 
@@ -40,6 +42,7 @@ export class WebSocketService {
     this.uploadHandler = new UploadHandler();
     this.boardsHandler = new BoardsHandler();
     this.libraryHandler = new LibraryHandler();
+    this.boardManagerHandler = new BoardManagerHandler();
     this.serialHandler = new SerialHandler();
     this.arduinoService = new ArduinoCliService();
 
@@ -168,6 +171,21 @@ export class WebSocketService {
         case "lib-install":
         case "lib-uninstall":
           await this.libraryHandler.handle(
+            connection,
+            message,
+            this.sendMessage.bind(this)
+          );
+          break;
+
+        case "core-search":
+        case "core-list":
+        case "core-install":
+        case "core-uninstall":
+        case "board-listall":
+        case "board-url-list":
+        case "board-url-add":
+        case "board-url-remove":
+          await this.boardManagerHandler.handle(
             connection,
             message,
             this.sendMessage.bind(this)

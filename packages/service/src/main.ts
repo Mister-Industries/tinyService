@@ -1,7 +1,9 @@
+#!/usr/bin/env node
 /**
  * Standalone entry point — runs TinyService as its own process (npm run dev /
- * npm start / packaged binaries). Embedders (e.g. the tinyStudio Electron app)
- * import { TinyService } from service.js instead.
+ * npm start / packaged binaries / `npx @mister-industries/tinyservice`).
+ * Embedders (e.g. the tinyStudio Electron app) import { TinyService } from
+ * service.js instead.
  */
 import { logger } from "./config.js";
 import { TinyService } from "./service.js";

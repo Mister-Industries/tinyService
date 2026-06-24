@@ -1,5 +1,9 @@
 import { logger } from "../config.js";
 import { ArduinoCliService } from "../services/arduino-cli.service.js";
+import {
+  materializeSketch,
+  type MaterializedSketch,
+} from "../services/sketch-workspace.js";
 import type {
   IncomingMessage,
   OutgoingMessage,
@@ -21,43 +25,93 @@ export class UploadHandler {
       message: OutgoingMessage
     ) => void
   ): Promise<void> {
-    const { sketchPath, board, port } = message.payload;
+    const { sketchPath, board, port, files, sketchName } = message.payload;
 
-    if (!sketchPath || !board || !port) {
+    if ((!sketchPath && !files) || !board || !port) {
       sendMessage(connection, {
         type: "error",
         action: "upload",
         data: {
-          error: "Missing required parameters: sketchPath, board, and port",
+          error:
+            "Missing required parameters: (sketchPath or files), board, and port",
         },
       });
       return;
     }
 
-    logger.info(
-      `Starting upload for ${sketchPath} to board ${board} on port ${port}`
-    );
+    const streamOutput = (output: string): void => {
+      sendMessage(connection, {
+        type: "output",
+        action: "upload",
+        data: { output },
+      });
+    };
 
-    // Send status update
-    sendMessage(connection, {
-      type: "status",
-      action: "upload",
-      data: { message: "Starting upload...", sketchPath, board, port },
-    });
-
+    // Web build: the sketch arrives as file contents with no real path. Write
+    // it to a temp dir, then compile *into that same dir* before uploading —
+    // arduino-cli's `upload` needs a build present, and a fresh temp dir has
+    // none (desktop reuses one path across compile+upload, so it's fine there).
+    let materialized: MaterializedSketch | null = null;
+    let effectiveSketchPath = sketchPath;
     try {
+      if (files) {
+        materialized = await materializeSketch(files, sketchName);
+        effectiveSketchPath = materialized.sketchPath;
+
+        sendMessage(connection, {
+          type: "status",
+          action: "upload",
+          data: {
+            message: "Compiling before upload...",
+            sketchPath: effectiveSketchPath,
+            board,
+            port,
+          },
+        });
+
+        const compileResult = await this.arduinoService.compile(
+          effectiveSketchPath,
+          board,
+          streamOutput
+        );
+        if (!compileResult.success) {
+          sendMessage(connection, {
+            type: "error",
+            action: "upload",
+            data: {
+              error: compileResult.error || "Compilation failed before upload",
+              output: compileResult.output,
+            },
+          });
+          logger.error(
+            `Pre-upload compile failed for ${effectiveSketchPath}:`,
+            compileResult.error
+          );
+          return;
+        }
+      }
+
+      logger.info(
+        `Starting upload for ${effectiveSketchPath} to board ${board} on port ${port}`
+      );
+
+      // Send status update
+      sendMessage(connection, {
+        type: "status",
+        action: "upload",
+        data: {
+          message: "Starting upload...",
+          sketchPath: effectiveSketchPath,
+          board,
+          port,
+        },
+      });
+
       const result = await this.arduinoService.upload(
-        sketchPath,
+        effectiveSketchPath,
         board,
         port,
-        (output: string) => {
-          // Stream real-time output to client
-          sendMessage(connection, {
-            type: "output",
-            action: "upload",
-            data: { output },
-          });
-        }
+        streamOutput
       );
 
       if (result.success) {
@@ -67,13 +121,13 @@ export class UploadHandler {
           data: {
             success: true,
             message: "Upload completed successfully",
-            sketchPath,
+            sketchPath: effectiveSketchPath,
             board,
             port,
             output: result.output,
           },
         });
-        logger.info(`Upload successful for ${sketchPath} to ${port}`);
+        logger.info(`Upload successful for ${effectiveSketchPath} to ${port}`);
       } else {
         sendMessage(connection, {
           type: "error",
@@ -83,7 +137,7 @@ export class UploadHandler {
             output: result.output,
           },
         });
-        logger.error(`Upload failed for ${sketchPath}:`, result.error);
+        logger.error(`Upload failed for ${effectiveSketchPath}:`, result.error);
       }
     } catch (error) {
       const errorMessage =
@@ -93,7 +147,9 @@ export class UploadHandler {
         action: "upload",
         data: { error: `Upload error: ${errorMessage}` },
       });
-      logger.error(`Upload error for ${sketchPath}:`, error);
+      logger.error(`Upload error for ${effectiveSketchPath}:`, error);
+    } finally {
+      await materialized?.cleanup();
     }
   }
 }
