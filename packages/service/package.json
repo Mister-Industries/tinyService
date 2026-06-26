@@ -1,6 +1,6 @@
 {
   "name": "@mister-industries/tinyservice",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Node.js TypeScript WebSocket service for compiling Arduino projects (tinyStudio backend)",
   "main": "dist/service.js",
   "type": "module",
@@ -47,7 +47,7 @@
     "express": "^4.18.2",
     "uuid": "^9.0.1",
     "ws": "^8.14.2",
-    "@mister-industries/shared": "^1.0.0"
+    "@mister-industries/shared": "^1.1.1"
   },
   "publishConfig": {
     "access": "public"
