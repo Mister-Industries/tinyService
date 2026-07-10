@@ -45,10 +45,9 @@ nsis:
   deleteAppDataOnUninstall: true
   artifactName: tinyService-Setup.${ext}
 
-publish:
-  provider: github
-  owner: Mister-Industries
-  repo: tinyService
-  releaseType: release
+# No `publish` block on purpose: electron-builder's GitHub publisher derives
+# the release tag from package.json (v1.0.0), which never matches our agent-v*
+# tags. CI builds with --publish never and releases via softprops/action-gh-release
+# using the real pushed tag (see .github/workflows/release-agent.yml).
 
 npmRebuild: false

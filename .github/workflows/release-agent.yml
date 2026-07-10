@@ -2,10 +2,16 @@
 # GitHub Releases.
 #
 # Trigger: push a tag like `agent-v1.0.0` (or run manually from the Actions
-# tab). The published asset keeps the stable name `tinyService-Setup.exe`, so
-# the website / tinyStudio can always link:
+# tab — manual runs build the installer as a CI artifact without releasing).
+# The published asset keeps the stable name `tinyService-Setup.exe`, so the
+# website / tinyStudio can always link:
 #
 #   https://github.com/Mister-Industries/tinyService/releases/latest/download/tinyService-Setup.exe
+#
+# Note: electron-builder itself only BUILDS (--publish never). Its own GitHub
+# publisher derives the tag from package.json ("v1.0.0"), which never matches
+# our agent-v* tags and makes the API reject the release ("Published releases
+# must have a valid tag"). The release step below uses the real pushed tag.
 
 name: Release tinyService Agent
 
@@ -43,15 +49,19 @@ jobs:
       - name: Bundle agent main process
         run: npm run build --workspace=packages/agent
 
-      # Tag pushes publish to GitHub Releases; manual (workflow_dispatch) runs
-      # only build, so you can test without cutting a release.
-      - name: Build installer (and publish on tag)
+      - name: Build installer
         working-directory: packages/agent
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+        run: npx electron-builder --win --publish never
 
-      # Always keep the installer as a CI artifact too.
+      - name: Publish GitHub release (tag pushes only)
+        if: startsWith(github.ref, 'refs/tags/agent-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: tinyService Agent ${{ github.ref_name }}
+          files: packages/agent/release/tinyService-Setup.exe
+          fail_on_unmatched_files: true
+
+      # Manual runs (and tag runs) also keep the installer as a CI artifact.
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
