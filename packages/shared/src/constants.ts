@@ -23,6 +23,16 @@ export const ACTIONS = {
   SERIAL_OPEN: "serial-open" as const,
   SERIAL_CLOSE: "serial-close" as const,
   SERIAL_WRITE: "serial-write" as const,
+  /** Fetch FQBN config options + programmers for a board (arduino-cli board details) */
+  BOARD_DETAILS: "board-details" as const,
+};
+
+/**
+ * Server-initiated (push) actions that are not replies to a client request.
+ */
+export const PUSH_ACTIONS = {
+  /** Broadcast whenever the set of detected boards/ports changes (board watch) */
+  BOARD_EVENTS: "board-events" as const,
 };
 
 /**

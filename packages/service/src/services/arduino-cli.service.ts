@@ -59,7 +59,7 @@ export class ArduinoCliService {
    * definition for the port (e.g. CH340/CP210x clones, or before the tinyCore
    * platform is installed). Returns a best-guess FQBN + name, or null.
    */
-  private identifyByUsb(
+  identifyByUsb(
     vidRaw: string,
     pidRaw: string
   ): { fqbn: string; name: string } | null {
@@ -110,46 +110,7 @@ export class ArduinoCliService {
         Array.isArray(boardsData.detected_ports)
       ) {
         for (const port of boardsData.detected_ports) {
-          const address: string | undefined = port.port?.address || undefined;
-          if (!address) continue;
-
-          if (port.matching_boards && port.matching_boards.length > 0) {
-            // Prioritize tinyCore boards over generic esp32 boards when a port
-            // matches multiple cores.
-            const tinyCoreBoard = port.matching_boards.find((mb: any) =>
-              mb.fqbn.startsWith("tinyCore:")
-            );
-            if (tinyCoreBoard) {
-              boards.push({
-                fqbn: tinyCoreBoard.fqbn,
-                name: tinyCoreBoard.name,
-                port: address,
-              });
-            } else {
-              for (const matchingBoard of port.matching_boards) {
-                boards.push({
-                  fqbn: matchingBoard.fqbn,
-                  name: matchingBoard.name,
-                  port: address,
-                });
-              }
-            }
-            continue;
-          }
-
-          // No core matched — fall back to USB VID/PID identification so clone
-          // boards (very common for the Uno) are still offered to the user.
-          const props = port.port?.properties || {};
-          const vid: string = props.vid || props.VID || "";
-          const pid: string = props.pid || props.PID || "";
-          if (!vid || !pid) continue; // skip non-USB ports (Bluetooth, AMT, …)
-
-          const guess = this.identifyByUsb(vid, pid);
-          boards.push({
-            fqbn: guess?.fqbn || "",
-            name: guess?.name || `Serial device (${address})`,
-            port: address,
-          });
+          boards.push(...this.detectedPortToBoards(port));
         }
       }
 
@@ -158,6 +119,110 @@ export class ArduinoCliService {
     } catch (error) {
       logger.error("Error parsing boards list:", error);
       return [];
+    }
+  }
+
+  /**
+   * Convert one arduino-cli detected-port entry (from `board list` or a
+   * `board list --watch` add event) into BoardInfo entries. Ports arduino-cli
+   * matched to an installed core are reported as-is; unmatched USB serial
+   * ports fall back to VID/PID identification and are flagged `guess: true`
+   * so UIs can offer a "choose board for this port" override.
+   */
+  detectedPortToBoards(portEntry: any): BoardInfo[] {
+    const rawPort = portEntry?.port ?? portEntry ?? {};
+    const address: string | undefined = rawPort.address || undefined;
+    if (!address) return [];
+    const protocol: string | undefined = rawPort.protocol || undefined;
+
+    const matching =
+      portEntry?.matching_boards ?? portEntry?.matchingBoards ?? [];
+    if (Array.isArray(matching) && matching.length > 0) {
+      // Prioritize tinyCore boards over generic esp32 boards when a port
+      // matches multiple cores.
+      const tinyCoreBoard = matching.find((mb: any) =>
+        String(mb?.fqbn || "").startsWith("tinyCore:")
+      );
+      const chosen = tinyCoreBoard ? [tinyCoreBoard] : matching;
+      return chosen
+        .filter((mb: any) => mb?.fqbn)
+        .map((mb: any) => ({
+          fqbn: mb.fqbn,
+          name: mb.name || mb.fqbn,
+          port: address,
+          protocol,
+        }));
+    }
+
+    // No core matched — fall back to USB VID/PID identification so clone
+    // boards (very common for the Uno) are still offered to the user.
+    const props = rawPort.properties || {};
+    const vid: string = props.vid || props.VID || "";
+    const pid: string = props.pid || props.PID || "";
+    if (!vid || !pid) return []; // skip non-USB ports (Bluetooth, AMT, …)
+
+    const guess = this.identifyByUsb(vid, pid);
+    return [
+      {
+        fqbn: guess?.fqbn || "",
+        name: guess?.name || `Serial device (${address})`,
+        port: address,
+        protocol,
+        guess: true,
+      },
+    ];
+  }
+
+  /**
+   * Fetch a board's FQBN config options (PSRAM, CPU frequency, partition
+   * scheme, …) and available programmers via `arduino-cli board details`.
+   */
+  async boardDetails(fqbn: string): Promise<{
+    fqbn: string;
+    name: string;
+    configOptions: Array<{
+      option: string;
+      optionLabel: string;
+      values: Array<{ value: string; valueLabel: string; selected?: boolean }>;
+    }>;
+    programmers: Array<{ id: string; name: string }>;
+  } | null> {
+    const result = await this.executeCommand([
+      "board",
+      "details",
+      "-b",
+      fqbn,
+      "--format",
+      "json",
+    ]);
+    if (!result.success) {
+      logger.error(`board details failed for ${fqbn}:`, result.error);
+      return null;
+    }
+    try {
+      const data = JSON.parse(result.output);
+      const configOptions = (data.config_options || []).map((opt: any) => ({
+        option: opt.option || "",
+        optionLabel: opt.option_label || opt.option || "",
+        values: (opt.values || []).map((v: any) => ({
+          value: v.value || "",
+          valueLabel: v.value_label || v.value || "",
+          ...(v.selected ? { selected: true } : {}),
+        })),
+      }));
+      const programmers = (data.programmers || []).map((p: any) => ({
+        id: p.id || "",
+        name: p.name || p.id || "",
+      }));
+      return {
+        fqbn: data.fqbn || fqbn,
+        name: data.name || fqbn,
+        configOptions,
+        programmers,
+      };
+    } catch (error) {
+      logger.error(`Error parsing board details for ${fqbn}:`, error);
+      return null;
     }
   }
 

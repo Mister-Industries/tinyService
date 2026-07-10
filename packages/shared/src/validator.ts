@@ -47,10 +47,15 @@ export class MessageValidator {
       ACTIONS.SERIAL_OPEN,
       ACTIONS.SERIAL_CLOSE,
       ACTIONS.SERIAL_WRITE,
+      ACTIONS.BOARD_DETAILS,
     ];
 
     if (!validActions.includes(data.action)) {
       return { valid: false, error: `Invalid action: ${data.action}` };
+    }
+
+    if (data.id !== undefined && typeof data.id !== "string") {
+      return { valid: false, error: "id must be a string when present" };
     }
 
     if (!data.payload || typeof data.payload !== "object") {
@@ -154,6 +159,15 @@ export class MessageValidator {
       case ACTIONS.SERIAL_WRITE:
         if (typeof payload.data !== "string") {
           return { valid: false, error: "data is required for serial-write" };
+        }
+        break;
+
+      case ACTIONS.BOARD_DETAILS:
+        if (!payload.board || typeof payload.board !== "string") {
+          return {
+            valid: false,
+            error: "board (FQBN) is required for board-details",
+          };
         }
         break;
     }

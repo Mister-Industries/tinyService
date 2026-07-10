@@ -1,0 +1,17 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="brand" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%"  stop-color="#22D3EE"/>
+      <stop offset="48%" stop-color="#7C7CF0"/>
+      <stop offset="100%" stop-color="#E0219B"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#262C42"/>
+      <stop offset="100%" stop-color="#171B2B"/>
+    </linearGradient>
+  </defs>
+  <!-- rounded-square tile matching tinyStudio's icon -->
+  <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228" fill="url(#tile)"/>
+  <!-- lightning bolt: build & flash -->
+  <path d="M 580 128 L 288 564 L 470 564 L 420 896 L 736 428 L 546 428 Z" fill="url(#brand)"/>
+</svg>

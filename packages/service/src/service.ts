@@ -67,6 +67,9 @@ export class TinyService {
           webSocket: {
             connectionCount,
           },
+          lsp: {
+            available: this.webSocketService.isLspAvailable(),
+          },
           service: {
             port: config.port,
             uptime: process.uptime(),

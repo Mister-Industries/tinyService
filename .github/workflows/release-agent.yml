@@ -1,0 +1,59 @@
+# Builds the tinyService tray-agent Windows installer and publishes it to
+# GitHub Releases.
+#
+# Trigger: push a tag like `agent-v1.0.0` (or run manually from the Actions
+# tab). The published asset keeps the stable name `tinyService-Setup.exe`, so
+# the website / tinyStudio can always link:
+#
+#   https://github.com/Mister-Industries/tinyService/releases/latest/download/tinyService-Setup.exe
+
+name: Release tinyService Agent
+
+on:
+  push:
+    tags:
+      - 'agent-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared + service packages
+        run: |
+          npm run build:shared
+          npm run build:service
+
+      - name: Fetch arduino-cli (bundled into installer)
+        run: node packages/agent/scripts/fetch-arduino-cli.mjs windows-x64
+
+      - name: Bundle agent main process
+        run: npm run build --workspace=packages/agent
+
+      # Tag pushes publish to GitHub Releases; manual (workflow_dispatch) runs
+      # only build, so you can test without cutting a release.
+      - name: Build installer (and publish on tag)
+        working-directory: packages/agent
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+
+      # Always keep the installer as a CI artifact too.
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tinyService-Setup
+          path: packages/agent/release/tinyService-Setup.exe

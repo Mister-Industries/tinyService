@@ -21,7 +21,13 @@ export type ActionType =
   | "board-url-remove"
   | "serial-open"
   | "serial-close"
-  | "serial-write";
+  | "serial-write"
+  | "board-details";
+
+/**
+ * Server-initiated push actions (no client request, no request id).
+ */
+export type PushActionType = "board-events";
 
 /**
  * Message types for server responses
@@ -33,6 +39,13 @@ export type MessageType = "status" | "output" | "error" | "complete";
  */
 export interface IncomingMessage {
   action: ActionType;
+  /**
+   * Optional request id. When present, the server echoes it on every message
+   * sent in response to this request (status/output/error/complete), so
+   * clients can correlate concurrent requests of the same action instead of
+   * matching on the action name alone.
+   */
+  id?: string;
   payload: {
     sketchPath: string;
     board: string; // FQBN format
@@ -61,6 +74,14 @@ export interface IncomingMessage {
     baud?: number;
     /** Serial monitor: line to send (serial-write) */
     data?: string;
+    /**
+     * Serial monitor (serial-write): when true, `data` is written to the port
+     * exactly as provided — the service appends nothing. When false/omitted the
+     * service appends "\n" (legacy behavior). Clients that offer line-ending
+     * choices (None / NL / CR / CRLF) should apply the ending themselves and
+     * send raw: true.
+     */
+    raw?: boolean;
   };
 }
 
@@ -97,6 +118,12 @@ export interface PlatformInfo {
 export interface OutgoingMessage {
   type: MessageType;
   action: string;
+  /**
+   * Echo of the originating request's id (when the request carried one).
+   * Server-initiated pushes (e.g. "board-events", streamed "serial" output)
+   * have no id.
+   */
+  id?: string;
   data: any;
 }
 
@@ -128,6 +155,45 @@ export interface BoardInfo {
   fqbn: string;
   name: string;
   port?: string;
+  /**
+   * True when the board identity was guessed from USB VID/PID rather than
+   * matched by arduino-cli. UIs should let the user override such entries
+   * (e.g. via a "choose board for this port" picker).
+   */
+  guess?: boolean;
+  /** Port protocol as reported by arduino-cli (e.g. "serial") */
+  protocol?: string;
+}
+
+/**
+ * One selectable value of an FQBN config option (board-details)
+ */
+export interface BoardConfigOptionValue {
+  value: string;
+  valueLabel: string;
+  selected?: boolean;
+}
+
+/**
+ * One FQBN config option of a board (board-details), e.g. PSRAM, CPU
+ * frequency, partition scheme. Selected values are appended to the FQBN as
+ * `base:option=value,option2=value2`.
+ */
+export interface BoardConfigOption {
+  option: string;
+  optionLabel: string;
+  values: BoardConfigOptionValue[];
+}
+
+/**
+ * Result of board-details: the board's identity plus its Tools-menu
+ * equivalents (config options and programmers).
+ */
+export interface BoardDetails {
+  fqbn: string;
+  name: string;
+  configOptions: BoardConfigOption[];
+  programmers: { id: string; name: string }[];
 }
 
 /**

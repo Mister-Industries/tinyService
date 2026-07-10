@@ -1,0 +1,28 @@
+{
+  "name": "@mister-industries/tinyservice-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "tinyService system-tray agent — runs the Arduino build/flash backend for tinyStudio in the browser",
+  "main": "dist/main.cjs",
+  "author": "Mister Industries",
+  "license": "MIT",
+  "homepage": "https://app.tinystudio.cc",
+  "scripts": {
+    "fetch-cli": "node scripts/fetch-arduino-cli.mjs windows-x64",
+    "build": "esbuild src/main.ts --bundle --platform=node --format=cjs --outfile=dist/main.cjs --external:electron --external:bufferutil --external:utf-8-validate",
+    "dev": "npm run build && electron .",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "lint:fix": "tsc --noEmit",
+    "dist:win": "npm run fetch-cli && npm run build && electron-builder --win",
+    "publish:win": "npm run fetch-cli && npm run build && electron-builder --win --publish always"
+  },
+  "devDependencies": {
+    "@mister-industries/tinyservice": "^1.0.1",
+    "@types/node": "^20.10.0",
+    "electron": "42.6.1",
+    "electron-builder": "^26.5.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.3.2"
+  }
+}

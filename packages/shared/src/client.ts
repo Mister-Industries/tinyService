@@ -94,21 +94,43 @@ export class TinyServiceClient {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
+  private requestCounter = 0;
+
   /**
-   * Send a message to the server
+   * Generate a unique request id so responses can be correlated to the exact
+   * request instead of matching on action name alone.
    */
-  private send(message: IncomingMessage): void {
+  private nextRequestId(): string {
+    try {
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+    } catch {
+      /* fall through to counter */
+    }
+    return `req-${Date.now()}-${++this.requestCounter}`;
+  }
+
+  /**
+   * Send a message to the server. Assigns a request id (echoed back by the
+   * server on every response to this request) and returns it.
+   */
+  private send(message: IncomingMessage): string {
     if (!this.isConnected()) {
       throw new Error("WebSocket is not connected");
     }
 
-    const validation = MessageValidator.validateIncoming(message);
+    const id = message.id ?? this.nextRequestId();
+    const withId: IncomingMessage = { ...message, id };
+
+    const validation = MessageValidator.validateIncoming(withId);
     if (!validation.valid) {
       throw new Error(`Invalid message: ${validation.error}`);
     }
 
-    this.ws!.send(JSON.stringify(message));
-    this.log("Sent message:", message);
+    this.ws!.send(JSON.stringify(withId));
+    this.log("Sent message:", withId);
+    return id;
   }
 
   /**
@@ -120,8 +142,8 @@ export class TinyServiceClient {
     board: string,
     files?: Record<string, string>,
     sketchName?: string
-  ): void {
-    this.send(MessageFactory.compile(sketchPath, board, files, sketchName));
+  ): string {
+    return this.send(MessageFactory.compile(sketchPath, board, files, sketchName));
   }
 
   /**
@@ -132,8 +154,8 @@ export class TinyServiceClient {
     board: string,
     files?: Record<string, string>,
     sketchName?: string
-  ): void {
-    this.send(MessageFactory.verify(sketchPath, board, files, sketchName));
+  ): string {
+    return this.send(MessageFactory.verify(sketchPath, board, files, sketchName));
   }
 
   /**
@@ -145,127 +167,135 @@ export class TinyServiceClient {
     port: string,
     files?: Record<string, string>,
     sketchName?: string
-  ): void {
-    this.send(MessageFactory.upload(sketchPath, board, port, files, sketchName));
+  ): string {
+    return this.send(MessageFactory.upload(sketchPath, board, port, files, sketchName));
   }
 
   /**
    * Request list of available boards
    */
-  listBoards(): void {
-    this.send(MessageFactory.listBoards());
+  listBoards(): string {
+    return this.send(MessageFactory.listBoards());
   }
 
   /**
    * Request installation of tinyCore board cores
    */
-  installCores(): void {
-    this.send(MessageFactory.installCores());
+  installCores(): string {
+    return this.send(MessageFactory.installCores());
   }
 
   /**
    * Search the Arduino library index
    */
-  libSearch(query: string): void {
-    this.send(MessageFactory.libSearch(query));
+  libSearch(query: string): string {
+    return this.send(MessageFactory.libSearch(query));
   }
 
   /**
    * List installed libraries
    */
-  libList(): void {
-    this.send(MessageFactory.libList());
+  libList(): string {
+    return this.send(MessageFactory.libList());
   }
 
   /**
    * Install a library (optionally pinned to a version)
    */
-  libInstall(library: string, version?: string): void {
-    this.send(MessageFactory.libInstall(library, version));
+  libInstall(library: string, version?: string): string {
+    return this.send(MessageFactory.libInstall(library, version));
   }
 
   /**
    * Uninstall a library
    */
-  libUninstall(library: string): void {
-    this.send(MessageFactory.libUninstall(library));
+  libUninstall(library: string): string {
+    return this.send(MessageFactory.libUninstall(library));
   }
 
   /**
    * Search the Arduino platform (core) index
    */
-  coreSearch(query: string): void {
-    this.send(MessageFactory.coreSearch(query));
+  coreSearch(query: string): string {
+    return this.send(MessageFactory.coreSearch(query));
   }
 
   /**
    * List installed platforms (cores)
    */
-  coreList(): void {
-    this.send(MessageFactory.coreList());
+  coreList(): string {
+    return this.send(MessageFactory.coreList());
   }
 
   /**
    * Install a platform (core), optionally pinned to a version
    */
-  coreInstall(platform: string, version?: string): void {
-    this.send(MessageFactory.coreInstall(platform, version));
+  coreInstall(platform: string, version?: string): string {
+    return this.send(MessageFactory.coreInstall(platform, version));
   }
 
   /**
    * Uninstall a platform (core)
    */
-  coreUninstall(platform: string): void {
-    this.send(MessageFactory.coreUninstall(platform));
+  coreUninstall(platform: string): string {
+    return this.send(MessageFactory.coreUninstall(platform));
   }
 
   /**
    * List every board (FQBN) provided by the installed platforms
    */
-  boardListall(): void {
-    this.send(MessageFactory.boardListall());
+  boardListall(): string {
+    return this.send(MessageFactory.boardListall());
   }
 
   /**
    * List the configured additional board-manager URLs
    */
-  boardUrlList(): void {
-    this.send(MessageFactory.boardUrlList());
+  boardUrlList(): string {
+    return this.send(MessageFactory.boardUrlList());
   }
 
   /**
    * Add an additional board-manager URL (then refreshes the core index)
    */
-  boardUrlAdd(url: string): void {
-    this.send(MessageFactory.boardUrlAdd(url));
+  boardUrlAdd(url: string): string {
+    return this.send(MessageFactory.boardUrlAdd(url));
   }
 
   /**
    * Remove an additional board-manager URL
    */
-  boardUrlRemove(url: string): void {
-    this.send(MessageFactory.boardUrlRemove(url));
+  boardUrlRemove(url: string): string {
+    return this.send(MessageFactory.boardUrlRemove(url));
   }
 
   /**
    * Open the serial monitor on a port at a baud rate
    */
-  serialOpen(port: string, baud: number): void {
-    this.send(MessageFactory.serialOpen(port, baud));
+  serialOpen(port: string, baud: number): string {
+    return this.send(MessageFactory.serialOpen(port, baud));
   }
 
   /**
    * Close the serial monitor
    */
-  serialClose(): void {
-    this.send(MessageFactory.serialClose());
+  serialClose(): string {
+    return this.send(MessageFactory.serialClose());
   }
 
   /**
    * Send a line to the serial port
    */
-  serialWrite(data: string): void {
-    this.send(MessageFactory.serialWrite(data));
+  serialWrite(data: string, raw?: boolean): string {
+    return this.send(MessageFactory.serialWrite(data, raw));
+  }
+
+  /**
+   * Request FQBN config options + programmers for a board
+   * (arduino-cli board details)
+   */
+  boardDetails(fqbn: string): string {
+    return this.send(MessageFactory.boardDetails(fqbn));
   }
 
   /**

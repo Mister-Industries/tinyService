@@ -241,12 +241,25 @@ export class MessageFactory {
   }
 
   /**
-   * Send a line to the serial port
+   * Send data to the serial port. With `raw: true` the service writes `data`
+   * exactly as provided (client applies its own line ending); otherwise the
+   * service appends "\n" (legacy behavior).
    */
-  static serialWrite(data: string): IncomingMessage {
+  static serialWrite(data: string, raw?: boolean): IncomingMessage {
     return {
       action: ACTIONS.SERIAL_WRITE,
-      payload: { sketchPath: "", board: "", data },
+      payload: { sketchPath: "", board: "", data, ...(raw ? { raw } : {}) },
+    };
+  }
+
+  /**
+   * Request FQBN config options + programmers for a board
+   * (arduino-cli board details)
+   */
+  static boardDetails(fqbn: string): IncomingMessage {
+    return {
+      action: ACTIONS.BOARD_DETAILS,
+      payload: { sketchPath: "", board: fqbn },
     };
   }
 

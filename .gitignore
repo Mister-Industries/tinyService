@@ -25,3 +25,9 @@ build/
 .Trashes
 ehthumbs.db
 Thumbs.db
+# tinyService Agent (packages/agent)
+# build/ is ignored globally above, but the agent's build/ holds installer
+# icons that must be committed.
+!packages/agent/build/
+packages/agent/vendor/
+packages/agent/release/
