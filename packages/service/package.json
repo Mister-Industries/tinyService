@@ -1,6 +1,6 @@
 {
   "name": "@mister-industries/tinyservice",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Node.js TypeScript WebSocket service for compiling Arduino projects (tinyStudio backend)",
   "main": "dist/service.js",
   "type": "module",
