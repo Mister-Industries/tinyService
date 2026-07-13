@@ -54,7 +54,7 @@ export interface UseTinyServiceReturn {
  * ```
  */
 export function useTinyService(
-  options: UseTinyServiceOptions,
+  options: UseTinyServiceOptions
 ): UseTinyServiceReturn {
   const {
     url,
@@ -159,7 +159,7 @@ export function useTinyService(
         setError("Not connected to server");
       }
     },
-    [client, connected],
+    [client, connected]
   );
 
   // Upload method
@@ -171,7 +171,7 @@ export function useTinyService(
         setError("Not connected to server");
       }
     },
-    [client, connected],
+    [client, connected]
   );
 
   // Verify method
@@ -183,7 +183,7 @@ export function useTinyService(
         setError("Not connected to server");
       }
     },
-    [client, connected],
+    [client, connected]
   );
 
   // List boards method
