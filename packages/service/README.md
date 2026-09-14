@@ -107,11 +107,16 @@ See [TEST_CLIENT.md](./docs/TEST_CLIENT.md) for testing instructions.
 
 ## Environment Variables
 
-| Variable           | Default       | Description                    |
-| ------------------ | ------------- | ------------------------------ |
-| `PORT`             | `3000`        | Server port                    |
-| `ARDUINO_CLI_PATH` | `arduino-cli` | Path to Arduino CLI executable |
-| `NODE_ENV`         | `development` | Environment mode               |
+| Variable                      | Default                                | Description                                  |
+| ----------------------------- | -------------------------------------- | -------------------------------------------- |
+| `PORT`                        | `3000`                                 | Server port                                  |
+| `TINYSERVICE_HOST`            | `127.0.0.1`                            | Address to listen on                         |
+| `TINYSERVICE_ALLOWED_ORIGINS` | tinyStudio web app and localhost pages | Comma-separated browser origins allowed in   |
+| `ARDUINO_CLI_PATH`            | `arduino-cli`                          | Path to Arduino CLI executable               |
+| `NODE_ENV`                    | `development`                          | Environment mode                             |
+
+Embedders pass the same settings to `new TinyService({ host, allowedOrigins })`.
+See [Security Considerations](./docs/API.md#security-considerations).
 
 ## License
 

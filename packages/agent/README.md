@@ -8,6 +8,8 @@ Users download one installer, click it, and a ⚡ icon appears in the Windows
 hidden-icons tray. The agent:
 
 - runs `TinyService` on `ws://localhost:3000` (same backend the desktop app embeds)
+- accepts connections only from this computer, and only from tinyStudio pages
+  (`app.tinystudio.cc` or a page served from `localhost`)
 - bundles its own `arduino-cli.exe` (no PATH setup required)
 - starts at login by default (toggle in the tray menu)
 - waits politely if port 3000 is busy (e.g. tinyStudio desktop is running) and

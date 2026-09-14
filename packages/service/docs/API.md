@@ -276,17 +276,26 @@ Currently no rate limiting is implemented. For production use, consider adding:
 
 ## Security Considerations
 
-Current implementation:
+tinyService compiles code and flashes boards on the user's computer, so it
+talks only to this computer and to tinyStudio:
 
-- Accepts connections from any origin
-- No authentication required
-- Suitable for local development only
+- It listens on `127.0.0.1`. Set `host` (or `TINYSERVICE_HOST`) to listen
+  elsewhere, for example `0.0.0.0` to reach it from another machine.
+- A WebSocket connection (`/lsp` included) or HTTP request that carries an
+  `Origin` header is refused with `403` unless that origin is in
+  `allowedOrigins`. The default list is `https://app.tinystudio.cc`,
+  `http://localhost:*` and `http://127.0.0.1:*`. An entry is an exact origin
+  (`file://` for a packaged Electron app), an origin with port `*`, or `*` for
+  any origin.
+- A request with no `Origin` header is accepted. Browsers always send one, so
+  such a client is a program already running on this computer.
+- While listening on a loopback address, a request whose `Host` header doesn't
+  name this computer is refused. This blocks DNS rebinding.
+- CORS responses name the allowed origin rather than `*`.
 
-For production deployment, implement:
+Not implemented:
 
-- Origin validation
-- Authentication/authorization
+- Authentication: any program on this computer can connect
 - HTTPS/WSS connections
-- Input validation and sanitization
 - File path restrictions
 

@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer } from "http";
 import { config, configure, logger } from "./config.js";
+import { refusalReason } from "./security/access.js";
 import { ArduinoCliService } from "./services/arduino-cli.service.js";
 import { WebSocketService } from "./services/websocket.service.js";
 import type { ServiceConfig } from "./types/messages.types.js";
@@ -26,12 +27,21 @@ export class TinyService {
   }
 
   private setupMiddleware(): void {
-    this.app.use(express.json());
-    this.app.use(express.urlencoded({ extended: true }));
-
-    // CORS middleware
+    // Refuse other websites and DNS-rebound hosts before any other work (see
+    // security/access.ts). CORS headers name the allowed origin, not "*".
     this.app.use((req, res, next) => {
-      res.header("Access-Control-Allow-Origin", "*");
+      const refusal = refusalReason(req.headers, config);
+      if (refusal) {
+        logger.warn(`Refused HTTP ${req.method} ${req.path}: ${refusal}`);
+        res.status(403).json({ error: "Forbidden", message: refusal });
+        return;
+      }
+
+      const origin = req.headers.origin;
+      if (origin) {
+        res.header("Access-Control-Allow-Origin", origin);
+        res.vary("Origin");
+      }
       res.header(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, OPTIONS"
@@ -47,6 +57,9 @@ export class TinyService {
         next();
       }
     });
+
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
   }
 
   private setupRoutes(): void {
@@ -122,13 +135,14 @@ export class TinyService {
 
     await new Promise<void>((resolve, reject) => {
       this.httpServer.once("error", reject);
-      this.httpServer.listen(config.port, () => {
+      this.httpServer.listen(config.port, config.host, () => {
         this.httpServer.removeListener("error", reject);
-        logger.info(`TinyService started on port ${config.port}`);
+        logger.info(`TinyService started on ${config.host}:${config.port}`);
         logger.info(
           `Health check available at: http://localhost:${config.port}/health`
         );
         logger.info(`WebSocket endpoint: ws://localhost:${config.port}`);
+        logger.info(`Allowed origins: ${config.allowedOrigins.join(", ")}`);
         resolve();
       });
     });

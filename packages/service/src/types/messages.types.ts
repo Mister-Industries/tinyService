@@ -24,7 +24,17 @@ export interface WebSocketConnection extends WebSocket {
 
 export interface ServiceConfig {
   port: number;
+  /**
+   * Address to listen on. Defaults to 127.0.0.1, so only this computer can
+   * connect; `0.0.0.0` opens the service to the network.
+   */
+  host: string;
   arduinoCliPath: string;
+  /**
+   * Browser origins allowed to connect: exact origins (`file://`,
+   * `https://app.tinystudio.cc`), origins with port `*` (`http://localhost:*`),
+   * or `*` for any. Clients that send no Origin header are always accepted.
+   */
   allowedOrigins: string[];
   /**
    * Absolute path to the `arduino-language-server` binary. When set (and the

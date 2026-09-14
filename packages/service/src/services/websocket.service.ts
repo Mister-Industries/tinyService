@@ -2,7 +2,7 @@ import type { IncomingMessage, OutgoingMessage } from "@mister-industries/shared
 import { MessageValidator } from "@mister-industries/shared";
 import { v4 as uuidv4 } from "uuid";
 import WebSocket, { WebSocketServer } from "ws";
-import { logger } from "../config.js";
+import { config, logger } from "../config.js";
 import { BoardDetailsHandler } from "../handlers/board-details.handler.js";
 import { BoardManagerHandler } from "../handlers/board-manager.handler.js";
 import { BoardsHandler } from "../handlers/boards.handler.js";
@@ -11,6 +11,7 @@ import { handleInstallCores } from "../handlers/install-cores.handler.js";
 import { LibraryHandler } from "../handlers/library.handler.js";
 import { SerialHandler } from "../handlers/serial.handler.js";
 import { UploadHandler } from "../handlers/upload.handler.js";
+import { refusalReason } from "../security/access.js";
 import { ArduinoCliService } from "./arduino-cli.service.js";
 import { BoardWatchService } from "./board-watch.service.js";
 import { LspService } from "./lsp.service.js";
@@ -45,6 +46,15 @@ export class WebSocketService {
     server.on(
       "upgrade",
       (request: any, socket: import("stream").Duplex, head: Buffer) => {
+        const refusal = refusalReason(request.headers, config);
+        if (refusal) {
+          logger.warn(`Refused WebSocket connection: ${refusal}`);
+          socket.end(
+            "HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"
+          );
+          return;
+        }
+
         let pathname = "/";
         try {
           pathname = new URL(request.url || "/", "http://localhost").pathname;

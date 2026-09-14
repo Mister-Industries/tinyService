@@ -17,6 +17,7 @@
     "dev:agent": "npm run dev --workspace=packages/agent",
     "dist:agent": "npm run build:shared && npm run build:service && npm run dist:win --workspace=packages/agent",
     "build": "npm run build:shared && npm run build:service && npm run build:client",
+    "test": "npm run test --workspace=packages/service",
     "start:service": "npm run start --workspace=packages/service",
     "start:client": "npm run preview --workspace=packages/client",
     "lint": "npm run lint --workspaces",

@@ -1,6 +1,6 @@
 {
   "name": "@mister-industries/tinyservice",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Node.js TypeScript WebSocket service for compiling Arduino projects (tinyStudio backend)",
   "main": "dist/service.js",
   "type": "module",
@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "build": "tsc",
+    "test": "node --import tsx --test src/security/access.test.ts",
     "prepublishOnly": "npm run build",
     "start": "node dist/main.js",
     "package": "npm run build && pkg dist/main.js --out-path ../../dist --targets node18-win-x64,node18-macos-x64,node18-macos-arm64,node18-linux-x64",
