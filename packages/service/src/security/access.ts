@@ -16,10 +16,12 @@ import type { IncomingHttpHeaders } from "http";
  */
 
 /**
- * The hosted tinyStudio web app, and pages served from this computer on any
- * port (the tinyStudio dev servers, the test client).
+ * The hosted tinyStudio web app (studio.tinycore.cc, and app.tinystudio.cc while
+ * it still serves the app), and pages served from this computer on any port
+ * (the tinyStudio dev servers, the test client).
  */
 export const DEFAULT_ALLOWED_ORIGINS: readonly string[] = [
+  "https://studio.tinycore.cc",
   "https://app.tinystudio.cc",
   "http://localhost:*",
   "http://127.0.0.1:*",

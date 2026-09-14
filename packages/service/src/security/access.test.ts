@@ -23,6 +23,7 @@ describe("isOriginAllowed", () => {
 
   it("allows tinyStudio and localhost pages by default", () => {
     for (const origin of [
+      "https://studio.tinycore.cc",
       "https://app.tinystudio.cc",
       "http://localhost:5173",
       "http://localhost:5174",
@@ -36,6 +37,8 @@ describe("isOriginAllowed", () => {
   it("refuses other sites and look-alikes by default", () => {
     for (const origin of [
       "https://evil.example",
+      "https://studio.tinycore.cc.evil.example",
+      "https://store.tinycore.cc",
       "https://app.tinystudio.cc.evil.example",
       "http://app.tinystudio.cc",
       "http://localhost.evil.example",

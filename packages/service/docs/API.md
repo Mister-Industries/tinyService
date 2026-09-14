@@ -283,8 +283,8 @@ talks only to this computer and to tinyStudio:
   elsewhere, for example `0.0.0.0` to reach it from another machine.
 - A WebSocket connection (`/lsp` included) or HTTP request that carries an
   `Origin` header is refused with `403` unless that origin is in
-  `allowedOrigins`. The default list is `https://app.tinystudio.cc`,
-  `http://localhost:*` and `http://127.0.0.1:*`. An entry is an exact origin
+  `allowedOrigins`. The default list is `https://studio.tinycore.cc`,
+  `https://app.tinystudio.cc`, `http://localhost:*` and `http://127.0.0.1:*`. An entry is an exact origin
   (`file://` for a packaged Electron app), an origin with port `*`, or `*` for
   any origin.
 - A request with no `Origin` header is accepted. Browsers always send one, so

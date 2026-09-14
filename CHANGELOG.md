@@ -8,7 +8,8 @@
   can't reach it. It used to listen on every interface.
 - Websites can no longer drive tinyService. WebSocket connections (`/lsp`
   included) and HTTP requests from a browser origin outside `allowedOrigins` are
-  refused with `403`. The default allows `https://app.tinystudio.cc` and pages
+  refused with `403`. The default allows the tinyStudio web app
+  (`https://studio.tinycore.cc` and `https://app.tinystudio.cc`) and pages
   served from `localhost` or `127.0.0.1` on any port. Clients that send no
   `Origin` header, such as Node scripts and health checks, still connect.
 - Requests whose `Host` header isn't this computer are refused, which blocks
