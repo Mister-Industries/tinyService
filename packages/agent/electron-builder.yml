@@ -1,0 +1,53 @@
+# electron-builder config for the tinyService tray agent.
+#
+# Build locally (on Windows):   npm run dist:win   → release/tinyService-Setup.exe
+# CI (GitHub Actions):          .github/workflows/release-agent.yml publishes to
+#                               GitHub Releases on every `agent-v*` tag.
+#
+# The artifact name is intentionally version-less so the website / tinyStudio
+# can always link the stable URL:
+#   https://github.com/Mister-Industries/tinyService/releases/latest/download/tinyService-Setup.exe
+
+appId: cc.tinystudio.tinyservice
+productName: tinyService
+directories:
+  buildResources: build
+  output: release
+
+# src/main.ts is bundled (deps included) into dist/main.cjs by esbuild, so the
+# packaged app needs no node_modules at all — just the bundle and tray assets.
+files:
+  - dist/**
+  - assets/**
+
+extraResources:
+  # arduino-cli.exe is fetched into vendor/ by scripts/fetch-arduino-cli.mjs
+  # (run via `npm run fetch-cli`). Bundling it means zero-setup for users.
+  - from: vendor/arduino-cli/windows-x64/arduino-cli.exe
+    to: arduino-cli/arduino-cli.exe
+
+win:
+  target:
+    - nsis
+  icon: build/icon.ico
+  executableName: tinyservice-agent
+
+nsis:
+  # One-click, per-user install (no admin prompt), launch when done — the
+  # "download, run, and you're flashing boards" experience.
+  oneClick: true
+  perMachine: false
+  runAfterFinish: true
+  createDesktopShortcut: false
+  createStartMenuShortcut: true
+  shortcutName: tinyService
+  uninstallDisplayName: tinyService
+  deleteAppDataOnUninstall: true
+  artifactName: tinyService-Setup.${ext}
+
+# No `publish` block on purpose: electron-builder's GitHub publisher derives
+# the release tag from package.json (v1.0.0), which never matches our agent-v*
+# tags. CI builds with --publish never and releases via softprops/action-gh-release
+# using the real pushed tag (see .github/workflows/release-agent.yml).
+
+npmRebuild: false

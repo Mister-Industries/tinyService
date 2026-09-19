@@ -94,56 +94,208 @@ export class TinyServiceClient {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
+  private requestCounter = 0;
+
   /**
-   * Send a message to the server
+   * Generate a unique request id so responses can be correlated to the exact
+   * request instead of matching on action name alone.
    */
-  private send(message: IncomingMessage): void {
+  private nextRequestId(): string {
+    try {
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+    } catch {
+      /* fall through to counter */
+    }
+    return `req-${Date.now()}-${++this.requestCounter}`;
+  }
+
+  /**
+   * Send a message to the server. Assigns a request id (echoed back by the
+   * server on every response to this request) and returns it.
+   */
+  private send(message: IncomingMessage): string {
     if (!this.isConnected()) {
       throw new Error("WebSocket is not connected");
     }
 
-    const validation = MessageValidator.validateIncoming(message);
+    const id = message.id ?? this.nextRequestId();
+    const withId: IncomingMessage = { ...message, id };
+
+    const validation = MessageValidator.validateIncoming(withId);
     if (!validation.valid) {
       throw new Error(`Invalid message: ${validation.error}`);
     }
 
-    this.ws!.send(JSON.stringify(message));
-    this.log("Sent message:", message);
+    this.ws!.send(JSON.stringify(withId));
+    this.log("Sent message:", withId);
+    return id;
   }
 
   /**
-   * Compile Arduino sketch
+   * Compile Arduino sketch. Desktop passes a real `sketchPath`; the web build
+   * passes `files` (the sketch's contents) since it has no real path to give.
    */
-  compile(sketchPath: string, board: string): void {
-    this.send(MessageFactory.compile(sketchPath, board));
+  compile(
+    sketchPath: string,
+    board: string,
+    files?: Record<string, string>,
+    sketchName?: string
+  ): string {
+    return this.send(MessageFactory.compile(sketchPath, board, files, sketchName));
   }
 
   /**
-   * Verify Arduino sketch (compile without upload)
+   * Verify Arduino sketch (compile without upload). See `compile` for `files`.
    */
-  verify(sketchPath: string, board: string): void {
-    this.send(MessageFactory.verify(sketchPath, board));
+  verify(
+    sketchPath: string,
+    board: string,
+    files?: Record<string, string>,
+    sketchName?: string
+  ): string {
+    return this.send(MessageFactory.verify(sketchPath, board, files, sketchName));
   }
 
   /**
-   * Upload Arduino sketch to board
+   * Upload Arduino sketch to board. See `compile` for `files`.
    */
-  upload(sketchPath: string, board: string, port: string): void {
-    this.send(MessageFactory.upload(sketchPath, board, port));
+  upload(
+    sketchPath: string,
+    board: string,
+    port: string,
+    files?: Record<string, string>,
+    sketchName?: string
+  ): string {
+    return this.send(MessageFactory.upload(sketchPath, board, port, files, sketchName));
   }
 
   /**
    * Request list of available boards
    */
-  listBoards(): void {
-    this.send(MessageFactory.listBoards());
+  listBoards(): string {
+    return this.send(MessageFactory.listBoards());
   }
 
   /**
    * Request installation of tinyCore board cores
    */
-  installCores(): void {
-    this.send(MessageFactory.installCores());
+  installCores(): string {
+    return this.send(MessageFactory.installCores());
+  }
+
+  /**
+   * Search the Arduino library index
+   */
+  libSearch(query: string): string {
+    return this.send(MessageFactory.libSearch(query));
+  }
+
+  /**
+   * List installed libraries
+   */
+  libList(): string {
+    return this.send(MessageFactory.libList());
+  }
+
+  /**
+   * Install a library (optionally pinned to a version)
+   */
+  libInstall(library: string, version?: string): string {
+    return this.send(MessageFactory.libInstall(library, version));
+  }
+
+  /**
+   * Uninstall a library
+   */
+  libUninstall(library: string): string {
+    return this.send(MessageFactory.libUninstall(library));
+  }
+
+  /**
+   * Search the Arduino platform (core) index
+   */
+  coreSearch(query: string): string {
+    return this.send(MessageFactory.coreSearch(query));
+  }
+
+  /**
+   * List installed platforms (cores)
+   */
+  coreList(): string {
+    return this.send(MessageFactory.coreList());
+  }
+
+  /**
+   * Install a platform (core), optionally pinned to a version
+   */
+  coreInstall(platform: string, version?: string): string {
+    return this.send(MessageFactory.coreInstall(platform, version));
+  }
+
+  /**
+   * Uninstall a platform (core)
+   */
+  coreUninstall(platform: string): string {
+    return this.send(MessageFactory.coreUninstall(platform));
+  }
+
+  /**
+   * List every board (FQBN) provided by the installed platforms
+   */
+  boardListall(): string {
+    return this.send(MessageFactory.boardListall());
+  }
+
+  /**
+   * List the configured additional board-manager URLs
+   */
+  boardUrlList(): string {
+    return this.send(MessageFactory.boardUrlList());
+  }
+
+  /**
+   * Add an additional board-manager URL (then refreshes the core index)
+   */
+  boardUrlAdd(url: string): string {
+    return this.send(MessageFactory.boardUrlAdd(url));
+  }
+
+  /**
+   * Remove an additional board-manager URL
+   */
+  boardUrlRemove(url: string): string {
+    return this.send(MessageFactory.boardUrlRemove(url));
+  }
+
+  /**
+   * Open the serial monitor on a port at a baud rate
+   */
+  serialOpen(port: string, baud: number): string {
+    return this.send(MessageFactory.serialOpen(port, baud));
+  }
+
+  /**
+   * Close the serial monitor
+   */
+  serialClose(): string {
+    return this.send(MessageFactory.serialClose());
+  }
+
+  /**
+   * Send a line to the serial port
+   */
+  serialWrite(data: string, raw?: boolean): string {
+    return this.send(MessageFactory.serialWrite(data, raw));
+  }
+
+  /**
+   * Request FQBN config options + programmers for a board
+   * (arduino-cli board details)
+   */
+  boardDetails(fqbn: string): string {
+    return this.send(MessageFactory.boardDetails(fqbn));
   }
 
   /**
@@ -242,7 +394,7 @@ export class TinyServiceClient {
 
     this.reconnectAttempts++;
     this.log(
-      `Reconnecting in ${this.config.reconnectInterval}ms (attempt ${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`,
+      `Reconnecting in ${this.config.reconnectInterval}ms (attempt ${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`
     );
 
     this.reconnectTimeout = setTimeout(() => {

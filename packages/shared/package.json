@@ -1,20 +1,11 @@
 {
   "name": "@mister-industries/shared",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Shared messaging types and utilities for TinyService client-server communication",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
-  "lint-staged": {
-    "src/**/*.{js,ts}": [
-      "eslint --fix",
-      "prettier --write --ignore-unknown"
-    ],
-    "!(*.js|*.ts)": [
-      "prettier --write --ignore-unknown"
-    ]
-  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -27,7 +18,7 @@
     "typescript",
     "messaging"
   ],
-  "author": "Ethan Eckhardt",
+  "author": "",
   "license": "MIT",
   "devDependencies": {
     "@types/react": "^18.0.0",
@@ -51,6 +42,6 @@
     "url": "git+https://github.com/mister-industries/tinyService.git"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   }
 }

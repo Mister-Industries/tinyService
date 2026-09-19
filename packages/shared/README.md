@@ -234,8 +234,8 @@ function handleMessage(ws: WebSocket, message: IncomingMessage) {
       // Send status
       ws.send(
         JSON.stringify(
-          MessageFactory.status("compile", { message: "Starting..." }),
-        ),
+          MessageFactory.status("compile", { message: "Starting..." })
+        )
       );
       // ... perform compilation
       break;
@@ -377,3 +377,4 @@ npm run clean
 ## License
 
 MIT
+

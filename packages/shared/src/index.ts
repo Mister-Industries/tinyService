@@ -18,10 +18,14 @@ export type {
   WebSocketClientConfig,
 } from "./client.js";
 
-// React hooks (optional, requires React as peer dependency)
-// Note: Import directly from '@mister-industries/shared/hooks/useTinyService.js' if needed
-// export { useTinyService } from "./hooks/useTinyService.js";
-// export type {
-//   UseTinyServiceOptions,
-//   UseTinyServiceReturn,
-// } from "./hooks/useTinyService.js";
+// React hook (optional). Intentionally NOT re-exported from the index: a static
+// re-export forces every consumer — including the Node service and any non-React
+// environment — to resolve `react` at import time, which throws
+// ERR_MODULE_NOT_FOUND where react isn't installed. React consumers import it
+// directly:
+//   import { useTinyService } from "@mister-industries/shared/dist/hooks/useTinyService.js";
+// (types are erased at runtime, so re-exporting them here is safe).
+export type {
+  UseTinyServiceOptions,
+  UseTinyServiceReturn,
+} from "./hooks/useTinyService.js";
