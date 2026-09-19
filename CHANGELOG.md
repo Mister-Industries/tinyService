@@ -27,3 +27,4 @@
 ### tinyService Agent 1.1.0
 
 - Ships tinyservice 1.2.0.
+- A new icon for the installer, the app and the tray.
