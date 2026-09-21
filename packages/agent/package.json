@@ -1,6 +1,6 @@
 {
   "name": "@mister-industries/tinyservice-agent",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "tinyService system-tray agent — runs the Arduino build/flash backend for tinyStudio in the browser",
   "main": "dist/main.cjs",

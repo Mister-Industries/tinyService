@@ -14,25 +14,52 @@ export interface MaterializedSketch {
   cleanup: () => Promise<void>;
 }
 
+const INO = /\.ino$/i;
+
+/** Top-level `.ino` files, in the order the client sent them. */
+function topLevelInos(files: Record<string, string>): string[] {
+  return Object.keys(files).filter(
+    (rel) => !rel.includes("/") && INO.test(rel)
+  );
+}
+
+/**
+ * Coerce free text into a name arduino-cli accepts for a sketch folder.
+ *
+ * This mirrors tinyStudio's `toSketchName` (src/renderer/src/lib/
+ * projectLayout.ts) on purpose: `-` and `.` are legal in a sketch name, and a
+ * stricter rule here renamed the folder without renaming the .ino inside it,
+ * so `blink-alternate/` ended up holding `blink-alternate.ino` while
+ * arduino-cli looked for `blink_alternate.ino` and reported "main file missing
+ * from sketch". `materializeSketch` now renames the main .ino to match as
+ * well, so the two can't drift apart whatever this returns.
+ */
+export function sanitizeSketchName(raw: string): string {
+  return raw
+    .trim()
+    .replace(INO, "")
+    .replace(/\s+/g, "_")
+    .replace(/[^A-Za-z0-9_.-]/g, "")
+    .replace(/^[^A-Za-z0-9]+/, "")
+    .slice(0, 63);
+}
+
 /**
  * arduino-cli requires the sketch folder to contain a `.ino` whose base name
  * matches the folder. Pick that name from the files we were given: prefer a
- * top-level `.ino`, fall back to the caller-supplied name, then "sketch".
+ * top-level `.ino` (the one the caller named, if it's there), fall back to the
+ * caller-supplied name, then "sketch".
  */
-function resolveSketchName(
+export function resolveSketch(
   files: Record<string, string>,
   sketchName?: string
-): string {
-  const topLevelIno = Object.keys(files).find(
-    (rel) => !rel.includes("/") && rel.toLowerCase().endsWith(".ino")
-  );
-  const raw =
-    (topLevelIno && topLevelIno.replace(/\.ino$/i, "")) ||
-    sketchName ||
-    "sketch";
-  // Strip anything arduino-cli/the filesystem would choke on.
-  const safe = raw.replace(/[^A-Za-z0-9_]/g, "_").replace(/^_+|_+$/g, "");
-  return safe || "sketch";
+): { folderName: string; mainIno?: string } {
+  const inos = topLevelInos(files);
+  const named =
+    sketchName && inos.find((rel) => rel.replace(INO, "") === sketchName);
+  const mainIno = named || inos[0];
+  const raw = mainIno ? mainIno.replace(INO, "") : sketchName || "sketch";
+  return { folderName: sanitizeSketchName(raw) || "sketch", mainIno };
 }
 
 /**
@@ -41,17 +68,31 @@ function resolveSketchName(
  * build, which can't hand the service a real on-disk path. The files are placed
  * under a folder named after the sketch's main .ino, e.g.
  *   <tmp>/tinyservice-XXXX/fade/fade.ino
+ *
+ * If sanitizing changed the name, the main .ino is renamed along with the
+ * folder so the two always agree; every other file keeps its relative path.
  */
 export async function materializeSketch(
   files: Record<string, string>,
   sketchName?: string
 ): Promise<MaterializedSketch> {
   const tmpRoot = await mkdtemp(join(tmpdir(), "tinyservice-"));
-  const folderName = resolveSketchName(files, sketchName);
+  const { folderName, mainIno } = resolveSketch(files, sketchName);
   const sketchPath = join(tmpRoot, folderName);
   await mkdir(sketchPath, { recursive: true });
 
-  for (const [rel, content] of Object.entries(files)) {
+  // Keep the main .ino named after the folder. Skipped when a file of that
+  // name is already there: overwriting one of the user's files would be worse
+  // than the sketch failing to open.
+  const wanted = `${folderName}.ino`;
+  let toWrite = files;
+  if (mainIno && mainIno !== wanted && !(wanted in files)) {
+    toWrite = { ...files, [wanted]: files[mainIno] };
+    delete toWrite[mainIno];
+    logger.info(`Renamed main sketch file ${mainIno} to ${wanted}`);
+  }
+
+  for (const [rel, content] of Object.entries(toWrite)) {
     // Normalize separators and refuse anything that escapes the sketch folder.
     const normalized = rel.replace(/\\/g, "/").replace(/^\/+/, "");
     if (normalized.split("/").some((seg) => seg === "" || seg === "..")) {
@@ -63,7 +104,7 @@ export async function materializeSketch(
   }
 
   logger.info(
-    `Materialized ${Object.keys(files).length} file(s) to ${sketchPath}`
+    `Materialized ${Object.keys(toWrite).length} file(s) to ${sketchPath}`
   );
 
   return {

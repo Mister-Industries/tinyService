@@ -1,6 +1,17 @@
 # Changelog
 
-## tinyservice 1.2.0 and tinyService Agent 1.1.0 — not released
+## tinyservice 1.2.1 and tinyService Agent 1.1.1 — not released
+
+### Fixed
+
+- A sketch whose name contains `-` or `.` compiles again. The temp folder the
+  web build's files are written to was sanitized more strictly than the .ino
+  inside it, so `blink-alternate.ino` landed in a folder called
+  `blink_alternate` and arduino-cli reported "main file missing from sketch".
+  The folder now keeps the characters the Arduino IDE allows, and the main
+  .ino is renamed with the folder whenever sanitizing does change the name.
+
+## tinyservice 1.2.0 and tinyService Agent 1.1.0 — released 2026-09-18
 
 ### Security
 
