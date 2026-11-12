@@ -113,9 +113,12 @@ See [TEST_CLIENT.md](./docs/TEST_CLIENT.md) for testing instructions.
 | `TINYSERVICE_HOST`            | `127.0.0.1`                            | Address to listen on                         |
 | `TINYSERVICE_ALLOWED_ORIGINS` | tinyStudio web app and localhost pages | Comma-separated browser origins allowed in   |
 | `ARDUINO_CLI_PATH`            | `arduino-cli`                          | Path to Arduino CLI executable               |
+| `TINYSERVICE_AUTO_SETUP`      | on                                     | `0` turns off the automatic board setup      |
+| `TINYSERVICE_SETUP_PLATFORMS` | `tinyCore:esp32,esp32:esp32`           | Platforms the board setup installs, in order |
+| `TINYSERVICE_BOARD_URLS`      | Espressif and tinyCore indexes         | Board-manager URLs the setup adds            |
 | `NODE_ENV`                    | `development`                          | Environment mode                             |
 
-Embedders pass the same settings to `new TinyService({ host, allowedOrigins })`.
+Embedders pass the same settings to `new TinyService({ host, allowedOrigins, autoSetup, setupPlatforms, boardManagerUrls })`.
 See [Security Considerations](./docs/API.md#security-considerations).
 
 ## License

@@ -146,6 +146,8 @@ export class TinyService {
         resolve();
       });
     });
+
+    if (arduinoCliAvailable) this.webSocketService.startBoardSetup();
   }
 
   /**

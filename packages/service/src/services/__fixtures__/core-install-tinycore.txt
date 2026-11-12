@@ -1,0 +1,17 @@
+Downloading packages...
+esp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 0 B / 325.37 MiB    0.00%esp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 0 B / 325.37 MiB    0.00%esp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 30.00 MiB / 325.37 MiB    9.22% 00m03sesp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 52.87 MiB / 325.37 MiB   16.25% 00m02sesp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 77.06 MiB / 325.37 MiB   23.68% 00m02sesp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 102.09 MiB / 325.37 MiB   31.38% 00m02sesp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 102.09 MiB / 325.37 MiB   31.38% 00m01sesp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 130.00 MiB / 325.37 MiB   39.95% 00m02sesp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 161.86 MiB / 325.37 MiB   49.75% 00m01sesp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 191.86 MiB / 325.37 MiB   58.97% 00m01sesp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 210.50 MiB / 325.37 MiB   64.69% 00m01sesp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 210.50 MiB / 325.37 MiB   64.69%esp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 236.79 MiB / 325.37 MiB   72.78%esp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 257.34 MiB / 325.37 MiB   79.09%esp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 284.56 MiB / 325.37 MiB   87.46%esp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 310.83 MiB / 325.37 MiB   95.53%esp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 downloaded
+esp32:esp-x32@2405 0 B / 199.23 MiB    0.00%esp32:esp-x32@2405 0 B / 199.23 MiB    0.00%esp32:esp-x32@2405 28.31 MiB / 199.23 MiB   14.21% 00m02sesp32:esp-x32@2405 58.59 MiB / 199.23 MiB   29.41% 00m01sesp32:esp-x32@2405 86.73 MiB / 199.23 MiB   43.53%esp32:esp-x32@2405 115.95 MiB / 199.23 MiB   58.20%esp32:esp-x32@2405 115.95 MiB / 199.23 MiB   58.20%esp32:esp-x32@2405 140.00 MiB / 199.23 MiB   70.27%esp32:esp-x32@2405 168.76 MiB / 199.23 MiB   84.71%esp32:esp-x32@2405 downloaded
+esp32:esptool_py@4.9.dev3 0 B / 61.95 MiB    0.00%esp32:esptool_py@4.9.dev3 0 B / 61.95 MiB    0.00%esp32:esptool_py@4.9.dev3 31.32 MiB / 61.95 MiB   50.56%esp32:esptool_py@4.9.dev3 downloaded
+tinyCore:esp32@2.0.0 0 B / 19.66 MiB    0.00%tinyCore:esp32@2.0.0 downloaded
+Installing esp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2...
+Skipping tool configuration....
+esp32:esp32-arduino-libs@idf-release_v5.3-083aad99-v2 installed
+Installing esp32:esp-x32@2405...
+Skipping tool configuration....
+esp32:esp-x32@2405 installed
+Installing esp32:esptool_py@4.9.dev3...
+Skipping tool configuration....
+esp32:esptool_py@4.9.dev3 installed
+Installing platform tinyCore:esp32@2.0.0...
+Skipping platform configuration....
+Platform tinyCore:esp32@2.0.0 installed

@@ -45,4 +45,14 @@ export interface ServiceConfig {
   clangdPath?: string;
   /** Absolute path to arduino-cli.yaml, passed to the language server. */
   cliConfigPath?: string;
+  /**
+   * Run the automatic board setup at start: add the default board-manager
+   * URLs, refresh a stale index, and install the default platforms (tinyCore,
+   * then Espressif's ESP32 package). Default true.
+   */
+  autoSetup?: boolean;
+  /** Platforms the setup installs, in order. Default: tinyCore, then ESP32. */
+  setupPlatforms?: Array<{ id: string; name: string }>;
+  /** Board-manager URLs the setup makes sure are configured. */
+  boardManagerUrls?: string[];
 }

@@ -27,7 +27,7 @@ export type ActionType =
 /**
  * Server-initiated push actions (no client request, no request id).
  */
-export type PushActionType = "board-events";
+export type PushActionType = "board-events" | "package-jobs";
 
 /**
  * Message types for server responses
@@ -163,6 +163,90 @@ export interface BoardInfo {
   guess?: boolean;
   /** Port protocol as reported by arduino-cli (e.g. "serial") */
   protocol?: string;
+  /**
+   * True when the matching board is a discovery-only placeholder (`hide=true`
+   * in boards.txt), e.g. Espressif's "ESP32 Family Device" that every ESP32
+   * with native USB matches. It names the port but can't be compiled for.
+   */
+  isHidden?: boolean;
+  /** USB vendor id of the port, e.g. "0x303a" (USB ports only). */
+  vid?: string;
+  /** USB product id of the port, e.g. "0x1001" (USB ports only). */
+  pid?: string;
+  /** USB serial number of the port, when the device reports one. */
+  serialNumber?: string;
+}
+
+/**
+ * One package operation (platform/library install or uninstall, index update).
+ * tinyService runs one at a time and broadcasts its state to every client as
+ * the "package-jobs" push.
+ */
+export interface PackageJob {
+  /** Unique id of this run. */
+  id: string;
+  kind:
+    | "core-install"
+    | "core-uninstall"
+    | "lib-install"
+    | "lib-uninstall"
+    | "index-update"
+    | "url-add";
+  /** What is being acted on, e.g. "esp32:esp32", a library name, or a URL. */
+  target: string;
+  /** Human-readable summary, e.g. "Installing esp32:esp32". */
+  label: string;
+  /** Who started it: a user request or the automatic board setup. */
+  origin: "user" | "setup";
+  startedAt: number;
+  state: "running" | "succeeded" | "failed";
+  /** The item arduino-cli is working on right now. */
+  current?: {
+    /** e.g. "esp32:esp-rv32@2601" */
+    item: string;
+    phase: "downloading" | "installing" | "configuring";
+    /** 0–100, while downloading. */
+    percent?: number;
+    /** e.g. "590.0 MiB", while downloading. */
+    total?: string;
+  };
+  /** Items finished so far (downloaded or installed). */
+  done: string[];
+  /** Last meaningful line of output. */
+  lastLine?: string;
+  error?: string;
+  finishedAt?: number;
+}
+
+/** One platform the automatic board setup takes care of. */
+export interface SetupPlatform {
+  /** Platform id, e.g. "tinyCore:esp32". */
+  id: string;
+  /** Display name, e.g. "tinyCore". */
+  name: string;
+  status: "pending" | "installed" | "installing" | "failed" | "skipped";
+  error?: string;
+}
+
+/**
+ * State of the automatic board setup that runs when tinyService starts:
+ * board-manager URLs, index refresh, and the default platforms.
+ */
+export interface BoardSetupState {
+  state: "idle" | "running" | "done" | "failed" | "disabled";
+  /** What the setup is doing right now, e.g. "Updating board index". */
+  message?: string;
+  platforms: SetupPlatform[];
+  error?: string;
+}
+
+/** Payload of the "package-jobs" push. */
+export interface PackageJobsState {
+  /** The running operation, or null when idle. */
+  active: PackageJob | null;
+  /** The most recent finished operation, for a final status line. */
+  last: PackageJob | null;
+  setup: BoardSetupState;
 }
 
 /**

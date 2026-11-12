@@ -37,16 +37,68 @@ export class BoardWatchService {
   private stopped = false;
   private notifyTimer: ReturnType<typeof setTimeout> | null = null;
   private running = false;
+  /** Paused around platform installs; the last snapshot is still served. */
+  private paused = false;
+  /**
+   * After a restart, add events go here until the initial burst settles, then
+   * replace portMap in one step (see resume()).
+   */
+  private resyncMap: Map<string, BoardInfo[]> | null = null;
+  private resyncTimer: ReturnType<typeof setTimeout> | null = null;
+  /** How long to wait for the initial burst of add events after a restart. */
+  private static readonly RESYNC_SETTLE_MS = 1500;
+  /** Longest wait for that burst (nothing plugged in means no events). */
+  private static readonly RESYNC_MAX_WAIT_MS = 8000;
 
   start(): void {
     this.stopped = false;
     this.spawnWatcher();
   }
 
+  /**
+   * Stop discovery while platforms are installed or removed, as the Arduino
+   * IDE does: the install may replace the discovery tools, and the running
+   * watcher would keep identifying boards with the platforms it loaded at
+   * start. The last board list stays available meanwhile.
+   */
+  pause(): void {
+    if (this.paused || this.stopped) return;
+    logger.info("Pausing board watcher for a platform change");
+    this.paused = true;
+    this.killChild();
+  }
+
+  /**
+   * Restart discovery after a platform change. The fresh watcher reports every
+   * connected port again, identified with the platforms installed now; the
+   * port list is swapped once that initial burst settles, so clients see
+   * boards change identity rather than briefly disappear.
+   */
+  resume(): void {
+    if (!this.paused) return;
+    this.paused = false;
+    if (this.stopped) return;
+    logger.info("Restarting board watcher after a platform change");
+    this.restartCount = 0;
+    this.beginResync();
+    this.spawnWatcher();
+  }
+
   stop(): void {
     this.stopped = true;
-    this.running = false;
+    this.paused = false;
     if (this.notifyTimer) clearTimeout(this.notifyTimer);
+    this.endResync(false);
+    this.killChild();
+  }
+
+  /** True while the board list is live, or paused with a usable snapshot. */
+  isRunning(): boolean {
+    return this.running || this.paused;
+  }
+
+  private killChild(): void {
+    this.running = false;
     const child = this.child;
     this.child = null;
     if (child) {
@@ -58,8 +110,37 @@ export class BoardWatchService {
     }
   }
 
-  isRunning(): boolean {
-    return this.running;
+  private beginResync(): void {
+    this.endResync(false);
+    this.resyncMap = new Map();
+    // The settle timer starts with the first event: arduino-cli takes a few
+    // seconds to load big platforms before it reports anything. With nothing
+    // plugged in there are no events, so cap the wait.
+    if (this.resyncTimer) clearTimeout(this.resyncTimer);
+    this.resyncTimer = setTimeout(
+      () => this.endResync(true),
+      BoardWatchService.RESYNC_MAX_WAIT_MS
+    );
+  }
+
+  private armResyncTimer(): void {
+    if (this.resyncTimer) clearTimeout(this.resyncTimer);
+    this.resyncTimer = setTimeout(
+      () => this.endResync(true),
+      BoardWatchService.RESYNC_SETTLE_MS
+    );
+  }
+
+  /** Finish a resync; with `apply`, the collected ports replace portMap. */
+  private endResync(apply: boolean): void {
+    if (this.resyncTimer) clearTimeout(this.resyncTimer);
+    this.resyncTimer = null;
+    const fresh = this.resyncMap;
+    this.resyncMap = null;
+    if (!apply || !fresh) return;
+    this.portMap.clear();
+    for (const [address, boards] of fresh) this.portMap.set(address, boards);
+    this.notifySoon();
   }
 
   /** Current detected boards (flattened across ports). */
@@ -76,7 +157,7 @@ export class BoardWatchService {
   }
 
   private spawnWatcher(): void {
-    if (this.stopped) return;
+    if (this.stopped || this.paused) return;
     logger.info("Starting board watcher (arduino-cli board list --watch)");
     let child: ChildProcess;
     try {
@@ -120,7 +201,7 @@ export class BoardWatchService {
   }
 
   private scheduleRestart(): void {
-    if (this.stopped) return;
+    if (this.stopped || this.paused) return;
     this.restartCount++;
     if (this.restartCount > BoardWatchService.MAX_RESTARTS) {
       logger.error(
@@ -188,11 +269,29 @@ export class BoardWatchService {
     const address: string | undefined = rawPort.address || undefined;
     if (!address || (type !== "add" && type !== "remove")) return;
 
+    if (this.resyncMap) {
+      // Collecting the initial burst after a restart.
+      if (type === "remove") {
+        this.resyncMap.delete(address);
+      } else {
+        const boards = this.cli.detectedPortToBoards({
+          port: rawPort,
+          matching_boards:
+            (entry.port?.port ? entry.port : entry).matching_boards ??
+            event?.matching_boards ??
+            [],
+        });
+        if (boards.length > 0) this.resyncMap.set(address, boards);
+      }
+      this.armResyncTimer();
+      return;
+    }
+
     if (type === "remove") {
       if (!this.portMap.delete(address)) return; // no change
     } else {
       // Reuse the same conversion as one-shot `board list` so both paths
-      // produce identical BoardInfo entries (incl. VID/PID guesses).
+      // produce identical BoardInfo entries (incl. ports nothing matched).
       const portEntry = entry.port?.port ? entry.port : entry;
       const boards = this.cli.detectedPortToBoards(
         // `detectedPortToBoards` expects a detected-port entry: `{ port, matching_boards }`.

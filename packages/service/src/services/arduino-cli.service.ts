@@ -2,6 +2,13 @@ import { ChildProcess, spawn } from "child_process";
 import { config, logger } from "../config.js";
 import type { ArduinoCliResult, BoardInfo } from "../types/messages.types.js";
 
+/**
+ * How long an install may go without printing anything before it is treated as
+ * stuck. Downloads print progress several times a second; the longest silent
+ * stretch is unpacking a big toolchain, which takes a few minutes on a slow disk.
+ */
+export const INSTALL_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+
 export class ArduinoCliService {
   private readonly cliPath: string;
 
@@ -52,41 +59,9 @@ export class ArduinoCliService {
     );
   }
 
-  private readonly tinyCoreFqbn = "tinyCore:esp32:tiny_core_esp32s3_nopsram";
-
   /**
-   * Identify a board from its USB VID/PID when arduino-cli has no matching core
-   * definition for the port (e.g. CH340/CP210x clones, or before the tinyCore
-   * platform is installed). Returns a best-guess FQBN + name, or null.
-   */
-  identifyByUsb(
-    vidRaw: string,
-    pidRaw: string
-  ): { fqbn: string; name: string } | null {
-    const vid = vidRaw.toUpperCase().replace(/^0X/, "");
-    const pid = pidRaw.toUpperCase().replace(/^0X/, "");
-    // Espressif native USB (ESP32-S3, incl. tinyCore)
-    if (vid === "303A")
-      return { fqbn: this.tinyCoreFqbn, name: "tinyCore (ESP32-S3)" };
-    // Genuine Arduino Uno
-    if (
-      (vid === "2341" || vid === "2A03") &&
-      ["0043", "0001", "0243", "006A"].includes(pid)
-    )
-      return { fqbn: "arduino:avr:uno", name: "Arduino Uno" };
-    // CH340 serial bridge — overwhelmingly an Uno clone in this ecosystem
-    if (vid === "1A86" && (pid === "7523" || pid === "5523"))
-      return { fqbn: "arduino:avr:uno", name: "Arduino Uno (CH340)" };
-    // CP210x serial bridge — board type unknown, let the user choose
-    if (vid === "10C4" && pid === "EA60")
-      return { fqbn: "", name: "Serial device (CP210x)" };
-    return null;
-  }
-
-  /**
-   * List connected boards. Includes ports arduino-cli can identify outright
-   * (matching_boards) AND USB serial ports it can't (CH340/CP210x clones),
-   * matched heuristically by VID/PID so they're still selectable.
+   * List connected boards with a one-shot `board list`. Used when the board
+   * watcher isn't running; see detectedPortToBoards for the shape.
    */
   async listBoards(): Promise<BoardInfo[]> {
     try {
@@ -124,10 +99,16 @@ export class ArduinoCliService {
 
   /**
    * Convert one arduino-cli detected-port entry (from `board list` or a
-   * `board list --watch` add event) into BoardInfo entries. Ports arduino-cli
-   * matched to an installed core are reported as-is; unmatched USB serial
-   * ports fall back to VID/PID identification and are flagged `guess: true`
-   * so UIs can offer a "choose board for this port" override.
+   * `board list --watch` add event) into BoardInfo entries, one per board
+   * arduino-cli matched to the port.
+   *
+   * This reports what arduino-cli found and nothing more: every match is kept
+   * (a port can match several platforms' boards), placeholders keep their
+   * `isHidden` flag, and a USB port nothing matched is listed once with an
+   * empty FQBN so the user can pick its board. Deciding what to do with a
+   * placeholder or an unknown device is the client's job. The port's USB
+   * vid/pid/serial number ride along so clients can remember a choice per
+   * device.
    */
   detectedPortToBoards(portEntry: any): BoardInfo[] {
     const rawPort = portEntry?.port ?? portEntry ?? {};
@@ -135,39 +116,50 @@ export class ArduinoCliService {
     if (!address) return [];
     const protocol: string | undefined = rawPort.protocol || undefined;
 
-    const matching =
-      portEntry?.matching_boards ?? portEntry?.matchingBoards ?? [];
-    if (Array.isArray(matching) && matching.length > 0) {
-      // Prioritize tinyCore boards over generic esp32 boards when a port
-      // matches multiple cores.
-      const tinyCoreBoard = matching.find((mb: any) =>
-        String(mb?.fqbn || "").startsWith("tinyCore:")
-      );
-      const chosen = tinyCoreBoard ? [tinyCoreBoard] : matching;
-      return chosen
-        .filter((mb: any) => mb?.fqbn)
-        .map((mb: any) => ({
-          fqbn: mb.fqbn,
-          name: mb.name || mb.fqbn,
-          port: address,
-          protocol,
-        }));
+    const props = rawPort.properties || {};
+    const usb = {
+      vid: normalizeUsbId(props.vid ?? props.VID),
+      pid: normalizeUsbId(props.pid ?? props.PID),
+      serialNumber:
+        (props.serialNumber ?? props.serial_number ?? "") || undefined,
+    };
+    const portInfo = {
+      port: address,
+      protocol,
+      ...(usb.vid ? { vid: usb.vid } : {}),
+      ...(usb.pid ? { pid: usb.pid } : {}),
+      ...(usb.serialNumber ? { serialNumber: String(usb.serialNumber) } : {}),
+    };
+
+    const matching: any[] = (
+      portEntry?.matching_boards ??
+      portEntry?.matchingBoards ??
+      []
+    ).filter((mb: any) => mb?.fqbn);
+
+    if (matching.length > 0) {
+      // Real boards before discovery placeholders; otherwise keep the CLI's
+      // order (it already puts Arduino-maintained boards first).
+      const ordered = [
+        ...matching.filter((mb) => !isHiddenMatch(mb)),
+        ...matching.filter((mb) => isHiddenMatch(mb)),
+      ];
+      return ordered.map((mb) => ({
+        fqbn: String(mb.fqbn),
+        name: String(mb.name || mb.fqbn),
+        ...portInfo,
+        ...(isHiddenMatch(mb) ? { isHidden: true } : {}),
+      }));
     }
 
-    // No core matched — fall back to USB VID/PID identification so clone
-    // boards (very common for the Uno) are still offered to the user.
-    const props = rawPort.properties || {};
-    const vid: string = props.vid || props.VID || "";
-    const pid: string = props.pid || props.PID || "";
-    if (!vid || !pid) return []; // skip non-USB ports (Bluetooth, AMT, …)
-
-    const guess = this.identifyByUsb(vid, pid);
+    // Nothing matched. Skip ports that aren't USB devices (Bluetooth, debug
+    // consoles, ...); list USB devices with no board so the user can choose.
+    if (!usb.vid || !usb.pid) return [];
     return [
       {
-        fqbn: guess?.fqbn || "",
-        name: guess?.name || `Serial device (${address})`,
-        port: address,
-        protocol,
+        fqbn: "",
+        name: `Unknown device (${address})`,
+        ...portInfo,
         guess: true,
       },
     ];
@@ -299,15 +291,64 @@ export class ArduinoCliService {
   ): Promise<ArduinoCliResult> {
     const spec = version ? `${name}@${version}` : name;
     logger.info(`Installing library: ${spec}`);
-    return this.executeCommand(["lib", "install", spec], onOutput);
+    const opts = { idleTimeoutMs: INSTALL_IDLE_TIMEOUT_MS };
+    const first = await this.executeCommand(
+      ["lib", "install", spec],
+      onOutput,
+      opts
+    );
+    if (first.success || !isUnresolvableDependency(first)) return first;
+
+    // The library lists a dependency the Library Manager index doesn't have.
+    // Almost always one that ships with the board platform (Wire, SPI,
+    // EEPROM…), which arduino-cli can't resolve from the index, so it refuses
+    // the whole install. Install the library alone, then each dependency the
+    // index does have, so a real one (Adafruit BusIO…) isn't skipped.
+    const note = (text: string): void => onOutput?.(`\n${text}\n`);
+    note(
+      `${name} lists a dependency that isn't in the Library Manager index ` +
+        `(usually one that comes with the board platform, like Wire or SPI). ` +
+        `Installing ${name} without it.`
+    );
+    const alone = await this.executeCommand(
+      ["lib", "install", "--no-deps", spec],
+      onOutput,
+      opts
+    );
+    if (!alone.success) return alone;
+
+    const deps = libraryDependencies(
+      (await this.executeCommand(["lib", "search", name, "--format", "json"])).output,
+      name,
+      version
+    );
+    const skipped: string[] = [];
+    for (const dep of deps) {
+      // the same way, so a dependency's own platform dependencies are handled too
+      const r = await this.installLibrary(dep, undefined, onOutput);
+      if (!r.success) skipped.push(dep);
+    }
+    const summary = skipped.length
+      ? `Installed ${name}. Not in the Library Manager index, so not installed: ` +
+        `${skipped.join(", ")}. Those normally come with the board platform.`
+      : `Installed ${name} and its dependencies.`;
+    note(summary);
+    logger.info(summary);
+    return {
+      success: true,
+      output: [first.output, alone.output, summary].filter(Boolean).join("\n"),
+    };
   }
 
   /**
    * Uninstall a library by name.
    */
-  async uninstallLibrary(name: string): Promise<ArduinoCliResult> {
+  async uninstallLibrary(
+    name: string,
+    onOutput?: (data: string) => void
+  ): Promise<ArduinoCliResult> {
     logger.info(`Uninstalling library: ${name}`);
-    return this.executeCommand(["lib", "uninstall", name]);
+    return this.executeCommand(["lib", "uninstall", name], onOutput);
   }
 
   // ── Boards Manager: platforms (cores) ──────────────────────────────────────
@@ -390,9 +431,14 @@ export class ArduinoCliService {
   /**
    * Uninstall a platform (core) by id, e.g. "esp32:esp32".
    */
-  async uninstallCore(packageName: string): Promise<ArduinoCliResult> {
+  async uninstallCore(
+    packageName: string,
+    onOutput?: (data: string) => void
+  ): Promise<ArduinoCliResult> {
     logger.info(`Uninstalling core package: ${packageName}`);
-    return this.executeCommand(["core", "uninstall", packageName]);
+    return this.executeCommand(["core", "uninstall", packageName], onOutput, {
+      idleTimeoutMs: INSTALL_IDLE_TIMEOUT_MS,
+    });
   }
 
   /**
@@ -483,9 +529,13 @@ export class ArduinoCliService {
   /**
    * Update core index
    */
-  async updateCoreIndex(): Promise<ArduinoCliResult> {
+  async updateCoreIndex(
+    onOutput?: (data: string) => void
+  ): Promise<ArduinoCliResult> {
     logger.info("Updating Arduino core index...");
-    return this.executeCommand(["core", "update-index"]);
+    return this.executeCommand(["core", "update-index"], onOutput, {
+      idleTimeoutMs: INSTALL_IDLE_TIMEOUT_MS,
+    });
   }
 
   /**
@@ -496,7 +546,9 @@ export class ArduinoCliService {
     onOutput?: (data: string) => void
   ): Promise<ArduinoCliResult> {
     logger.info(`Installing core package: ${packageName}`);
-    return this.executeCommand(["core", "install", packageName], onOutput);
+    return this.executeCommand(["core", "install", packageName], onOutput, {
+      idleTimeoutMs: INSTALL_IDLE_TIMEOUT_MS,
+    });
   }
 
   /**
@@ -529,87 +581,46 @@ export class ArduinoCliService {
   }
 
   /**
-   * Initialize board packages for tinyCore
-   * Adds the board manager URL and installs required cores
+   * Read one arduino-cli setting, e.g. "directories.data". Returns the value
+   * as arduino-cli prints it in JSON (string, array, ...), or undefined.
    */
-  async initializeTinyCoreBoards(
-    onOutput?: (data: string) => void
-  ): Promise<boolean> {
+  async getConfigValue(key: string): Promise<unknown> {
+    const result = await this.executeCommand([
+      "config",
+      "get",
+      key,
+      "--format",
+      "json",
+    ]);
+    if (!result.success) return undefined;
     try {
-      logger.info("Initializing tinyCore board support...");
-
-      // Add tinyCore board manager URL
-      const tinyCoreUrl =
-        "https://raw.githubusercontent.com/Mister-Industries/arduino-board-index/refs/heads/main/package_tiny_core_index.json";
-
-      logger.info("Adding tinyCore board manager URL...");
-      await this.addBoardUrl(tinyCoreUrl);
-
-      // Update core index
-      logger.info("Updating core index...");
-      const updateResult = await this.updateCoreIndex();
-      if (!updateResult.success) {
-        logger.error("Failed to update core index:", updateResult.error);
-        return false;
-      }
-
-      // Install ESP32 package by Espressif (required dependency)
-      const esp32Package = "esp32:esp32";
-      const esp32Installed = await this.isCoreInstalled(esp32Package);
-
-      if (!esp32Installed) {
-        logger.info("Installing ESP32 package by Espressif...");
-        if (onOutput) onOutput("Installing ESP32 package by Espressif...\n");
-
-        const esp32Result = await this.installCore(esp32Package, onOutput);
-        if (!esp32Result.success) {
-          logger.error("Failed to install ESP32 package:", esp32Result.error);
-          return false;
-        }
-        logger.info("ESP32 package installed successfully");
-      } else {
-        logger.info("ESP32 package already installed");
-      }
-
-      // Install tinyCore ESP32 Boards by mr.industries
-      const tinyCorePackage = "tinyCore:esp32";
-      const tinyCoreInstalled = await this.isCoreInstalled(tinyCorePackage);
-
-      if (!tinyCoreInstalled) {
-        logger.info("Installing tinyCore ESP32 Boards by mr.industries...");
-        if (onOutput)
-          onOutput("Installing tinyCore ESP32 Boards by mr.industries...\n");
-
-        const tinyCoreResult = await this.installCore(
-          tinyCorePackage,
-          onOutput
-        );
-        if (!tinyCoreResult.success) {
-          logger.error(
-            "Failed to install tinyCore package:",
-            tinyCoreResult.error
-          );
-          return false;
-        }
-        logger.info("tinyCore ESP32 Boards installed successfully");
-      } else {
-        logger.info("tinyCore ESP32 Boards already installed");
-      }
-
-      logger.info("✓ tinyCore board support initialized successfully");
-      return true;
-    } catch (error) {
-      logger.error("Failed to initialize tinyCore boards:", error);
-      return false;
+      return JSON.parse(result.output);
+    } catch {
+      return undefined;
     }
+  }
+
+  /** arduino-cli's data directory (where indexes and platforms live). */
+  async getDataDir(): Promise<string | undefined> {
+    const value = await this.getConfigValue("directories.data");
+    return typeof value === "string" && value ? value : undefined;
   }
 
   /**
    * Execute an Arduino CLI command
    */
-  private executeCommand(
+  /**
+   * Execute an Arduino CLI command.
+   *
+   * `idleTimeoutMs` is a stall watchdog, not a time limit: the command is
+   * stopped only after that long with no output at all. Installs of big
+   * platforms legitimately run for many minutes, but they print download
+   * progress the whole time.
+   */
+  executeCommand(
     args: string[],
-    onOutput?: (data: string) => void
+    onOutput?: (data: string) => void,
+    options: { idleTimeoutMs?: number } = {}
   ): Promise<ArduinoCliResult> {
     return new Promise((resolve) => {
       logger.debug(`Executing: ${this.cliPath} ${args.join(" ")}`);
@@ -620,10 +631,26 @@ export class ArduinoCliService {
 
       let stdout = "";
       let stderr = "";
+      let stalled = false;
+      let idleTimer: ReturnType<typeof setTimeout> | null = null;
+      const armWatchdog = (): void => {
+        if (!options.idleTimeoutMs) return;
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          stalled = true;
+          logger.error(
+            `arduino-cli ${args.join(" ")} printed nothing for ` +
+              `${Math.round(options.idleTimeoutMs! / 60000)} min; stopping it.`
+          );
+          child.kill();
+        }, options.idleTimeoutMs);
+      };
+      armWatchdog();
 
       child.stdout?.on("data", (data: Buffer) => {
         const output = data.toString();
         stdout += output;
+        armWatchdog();
         if (onOutput) {
           onOutput(output);
         }
@@ -632,12 +659,24 @@ export class ArduinoCliService {
       child.stderr?.on("data", (data: Buffer) => {
         const output = data.toString();
         stderr += output;
+        armWatchdog();
         if (onOutput) {
           onOutput(output);
         }
       });
 
       child.on("close", (code: number) => {
+        if (idleTimer) clearTimeout(idleTimer);
+        if (stalled) {
+          resolve({
+            success: false,
+            output: stdout + (stderr ? `\n${stderr}` : ""),
+            error: `arduino-cli stopped responding (no output for ${Math.round(
+              options.idleTimeoutMs! / 60000
+            )} minutes)`,
+          });
+          return;
+        }
         const success = code === 0;
         // Combine stdout and stderr for complete output
         const combinedOutput = stdout + (stderr ? `\n${stderr}` : "");
@@ -660,6 +699,7 @@ export class ArduinoCliService {
       });
 
       child.on("error", (error: Error) => {
+        if (idleTimer) clearTimeout(idleTimer);
         logger.error("Failed to start Arduino CLI process:", error);
         resolve({
           success: false,
@@ -669,4 +709,48 @@ export class ArduinoCliService {
       });
     });
   }
+}
+
+/** "0x303A" / "303a" -> "0x303a"; "" when missing. */
+export function normalizeUsbId(value: unknown): string {
+  const raw = String(value ?? "").trim().toLowerCase().replace(/^0x/, "");
+  return /^[0-9a-f]{1,4}$/.test(raw) ? `0x${raw.padStart(4, "0")}` : "";
+}
+
+function isHiddenMatch(mb: any): boolean {
+  return Boolean(mb?.is_hidden ?? mb?.isHidden);
+}
+
+/**
+ * Whether a failed `lib install` failed only because a dependency couldn't be
+ * resolved from the library index: arduino-cli's
+ * "No valid dependencies solution found: dependency 'Wire' is not available".
+ */
+export function isUnresolvableDependency(result: ArduinoCliResult): boolean {
+  return /No valid dependencies solution found/i.test(
+    `${result.error ?? ""}\n${result.output ?? ""}`
+  );
+}
+
+/**
+ * The dependency names `name` declares, from `lib search <name> --format json`
+ * output: from the given version's release when it's listed, else the latest.
+ * Unparseable output, or a library that isn't in it, gives no dependencies.
+ */
+export function libraryDependencies(
+  searchJson: string,
+  name: string,
+  version?: string
+): string[] {
+  let data: any;
+  try {
+    data = JSON.parse(searchJson);
+  } catch {
+    return [];
+  }
+  const lib = ((data?.libraries ?? []) as any[]).find((l) => l?.name === name);
+  if (!lib) return [];
+  const release = (version && lib.releases?.[version]) || lib.latest || {};
+  const deps = (release.dependencies ?? []) as Array<{ name?: string }>;
+  return [...new Set(deps.map((d) => d?.name ?? "").filter((n) => n && n !== name))];
 }

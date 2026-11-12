@@ -1,5 +1,10 @@
 import { logger } from "../config.js";
 import { ArduinoCliService } from "../services/arduino-cli.service.js";
+import {
+  PackageJobBusyError,
+  PackageJobsService,
+  summarizeError,
+} from "../services/package-jobs.service.js";
 import type {
   IncomingMessage,
   OutgoingMessage,
@@ -14,7 +19,7 @@ import type {
 export class LibraryHandler {
   private arduinoService: ArduinoCliService;
 
-  constructor() {
+  constructor(private readonly jobs: PackageJobsService) {
     this.arduinoService = new ArduinoCliService();
   }
 
@@ -51,40 +56,59 @@ export class LibraryHandler {
         return;
       }
 
-      if (action === "lib-install") {
-        sendMessage(connection, {
-          type: "status",
-          action,
-          data: { message: `Installing ${library}...` },
-        });
-        const result = await this.arduinoService.installLibrary(
-          library,
-          version,
-          (output) =>
+      if (action === "lib-install" || action === "lib-uninstall") {
+        const installing = action === "lib-install";
+        const spec = installing && version ? `${library}@${version}` : library;
+        if (installing) {
+          sendMessage(connection, {
+            type: "status",
+            action,
+            data: { message: `Installing ${spec}...` },
+          });
+        }
+        let result;
+        try {
+          // Library installs share the one-at-a-time slot with platform
+          // installs: both write into arduino-cli's data directory.
+          result = await this.jobs.run(
+            {
+              kind: installing ? "lib-install" : "lib-uninstall",
+              target: library,
+              label: `${installing ? "Installing" : "Uninstalling"} ${spec}`,
+            },
+            (onOutput) =>
+              installing
+                ? this.arduinoService.installLibrary(library, version, onOutput)
+                : this.arduinoService.uninstallLibrary(library, onOutput),
+            (line) =>
+              sendMessage(connection, {
+                type: "output",
+                action,
+                data: { output: line },
+              })
+          );
+        } catch (error) {
+          if (error instanceof PackageJobBusyError) {
             sendMessage(connection, {
-              type: "output",
+              type: "error",
               action,
-              data: { output },
-            })
-        );
+              data: { error: error.message, busy: true, activeJob: error.active },
+            });
+            return;
+          }
+          throw error;
+        }
+        const verb = installing ? "install" : "uninstall";
         sendMessage(connection, {
           type: result.success ? "complete" : "error",
           action,
           data: result.success
-            ? { success: true, message: `Installed ${library}`, output: result.output }
-            : { error: `Failed to install ${library}`, details: result.error },
-        });
-        return;
-      }
-
-      if (action === "lib-uninstall") {
-        const result = await this.arduinoService.uninstallLibrary(library);
-        sendMessage(connection, {
-          type: result.success ? "complete" : "error",
-          action,
-          data: result.success
-            ? { success: true, message: `Uninstalled ${library}`, output: result.output }
-            : { error: `Failed to uninstall ${library}`, details: result.error },
+            ? {
+                success: true,
+                message: `${installing ? "Installed" : "Uninstalled"} ${library}`,
+                output: result.output,
+              }
+            : { error: `Failed to ${verb} ${library}`, details: summarizeError(result) },
         });
         return;
       }

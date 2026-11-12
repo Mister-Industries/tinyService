@@ -1,9 +1,54 @@
 # Changelog
 
-## tinyservice 1.2.1 and tinyService Agent 1.1.1 — not released
+## tinyservice 1.3.0, shared 1.3.0 and tinyService Agent 1.1.1 — not released
+
+### Boards
+
+- **Automatic board setup.** When tinyService starts it adds Espressif's and
+  the tinyCore board-manager URLs, refreshes the board index once a day (as the
+  Arduino IDE does), and installs tinyCore, then Espressif's ESP32 package
+  (every other ESP32 board, SparkFun's included). tinyCore goes first because
+  it is about a third of the size, so it is ready long before the rest. A
+  platform is installed automatically only once: one you uninstall stays
+  uninstalled. `install-cores` runs the setup again and installs anything
+  missing. Turn it off with `autoSetup: false` or `TINYSERVICE_AUTO_SETUP=0`;
+  choose the platforms with `setupPlatforms` / `TINYSERVICE_SETUP_PLATFORMS`
+  and the URLs with `boardManagerUrls` / `TINYSERVICE_BOARD_URLS`.
+- **One package operation at a time, with progress.** Platform and library
+  installs and uninstalls and board-URL changes run one at a time; a request
+  that arrives while one runs gets an error with `busy: true` and the running
+  job. Their state, with arduino-cli's download progress parsed per item, is
+  pushed to every client as `package-jobs` (on connect and on every change).
+  The requesting client also gets the finished output lines.
+- Installs have no time limit. An install is stopped only after 15 minutes
+  with no output at all.
+- Board discovery is paused while a platform is installed or removed and
+  restarted afterwards (as the Arduino IDE does), so boards that are already
+  plugged in are identified with the new platforms. Clients see boards change
+  identity rather than briefly disappear.
+- Adding a board-manager URL succeeds when that URL's index arrives, even if
+  another configured index can't be reached.
+
+### Changed
+
+- Board detection reports what arduino-cli found and nothing more. Every
+  board that matches a port is listed (real boards first, then discovery
+  placeholders flagged `isHidden`), with the port's USB `vid`, `pid` and
+  `serialNumber`. tinyCore is no longer preferred over other matches, an
+  Espressif USB id is no longer assumed to be a tinyCore, and a CH340 adapter
+  is no longer assumed to be an Arduino Uno: an unmatched USB device is listed
+  with no FQBN. Choosing a default for those is up to the client.
+
 
 ### Fixed
 
+- Libraries that depend on a library bundled with the board platform install.
+  arduino-cli resolves dependencies only from the Library Manager index, so a
+  library listing `Wire` or `SPI` (7Semi_BMI330, for one) failed with "No valid
+  dependencies solution found: dependency 'Wire' is not available". tinyService
+  now installs such a library with `--no-deps`, then installs each of its
+  dependencies that the index has, and reports the ones it left to the
+  platform.
 - A sketch whose name contains `-` or `.` compiles again. The temp folder the
   web build's files are written to was sanitized more strictly than the .ino
   inside it, so `blink-alternate.ino` landed in a folder called

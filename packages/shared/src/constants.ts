@@ -33,6 +33,12 @@ export const ACTIONS = {
 export const PUSH_ACTIONS = {
   /** Broadcast whenever the set of detected boards/ports changes (board watch) */
   BOARD_EVENTS: "board-events" as const,
+  /**
+   * Broadcast on connect and whenever a package operation (install, uninstall,
+   * index update) or the automatic board setup changes state. Payload:
+   * PackageJobsState.
+   */
+  PACKAGE_JOBS: "package-jobs" as const,
 };
 
 /**

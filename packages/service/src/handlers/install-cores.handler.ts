@@ -1,72 +1,49 @@
-import { logger } from "../config.js";
-import { ArduinoCliService } from "../services/arduino-cli.service.js";
-import { WebSocketConnection } from "../types/messages.types.js";
+import type { BoardSetupService } from "../services/board-setup.service.js";
+import type { PackageJobsService } from "../services/package-jobs.service.js";
+import type {
+  OutgoingMessage,
+  WebSocketConnection,
+} from "../types/messages.types.js";
 
+/**
+ * "install-cores": run the board setup again, installing any default platform
+ * that is missing, including one the user removed earlier. Progress arrives as
+ * the "package-jobs" push like any install; this replies when it is done.
+ */
 export async function handleInstallCores(
-  ws: WebSocketConnection,
-  arduinoService: ArduinoCliService
+  connection: WebSocketConnection,
+  setup: BoardSetupService,
+  jobs: PackageJobsService,
+  sendMessage: (connection: WebSocketConnection, message: OutgoingMessage) => void
 ): Promise<void> {
-  logger.info("Processing install-cores request");
+  sendMessage(connection, {
+    type: "status",
+    action: "install-cores",
+    data: { message: "Checking board support..." },
+  });
 
-  // Send initial status
-  ws.send(
-    JSON.stringify({
-      type: "status",
+  await setup.run({ force: true });
+  const state = jobs.getState().setup;
+
+  if (state.state === "done") {
+    sendMessage(connection, {
+      type: "complete",
       action: "install-cores",
       data: {
-        message: "Checking board core installation...",
+        success: true,
+        message: "Board support is installed",
+        platforms: state.platforms,
       },
-    })
-  );
-
-  try {
-    // Initialize tinyCore boards with output streaming
-    const success = await arduinoService.initializeTinyCoreBoards((output) => {
-      ws.send(
-        JSON.stringify({
-          type: "output",
-          action: "install-cores",
-          data: {
-            output: output,
-          },
-        })
-      );
     });
-
-    if (success) {
-      ws.send(
-        JSON.stringify({
-          type: "complete",
-          action: "install-cores",
-          data: {
-            success: true,
-            message: "Board cores installed and ready",
-          },
-        })
-      );
-    } else {
-      ws.send(
-        JSON.stringify({
-          type: "error",
-          action: "install-cores",
-          data: {
-            error: "Failed to install board cores",
-            details: "Check output for more information",
-          },
-        })
-      );
-    }
-  } catch (error) {
-    logger.error("Error installing cores:", error);
-    ws.send(
-      JSON.stringify({
-        type: "error",
-        action: "install-cores",
-        data: {
-          error: "Failed to install board cores",
-          details: error instanceof Error ? error.message : String(error),
-        },
-      })
-    );
+  } else {
+    sendMessage(connection, {
+      type: "error",
+      action: "install-cores",
+      data: {
+        error: state.message || "Failed to install board support",
+        details: state.error,
+        platforms: state.platforms,
+      },
+    });
   }
 }

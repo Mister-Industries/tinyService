@@ -13,8 +13,10 @@ import { SerialHandler } from "../handlers/serial.handler.js";
 import { UploadHandler } from "../handlers/upload.handler.js";
 import { refusalReason } from "../security/access.js";
 import { ArduinoCliService } from "./arduino-cli.service.js";
+import { BoardSetupService } from "./board-setup.service.js";
 import { BoardWatchService } from "./board-watch.service.js";
 import { LspService } from "./lsp.service.js";
+import { PackageJobsService } from "./package-jobs.service.js";
 
 export interface WebSocketConnection extends WebSocket {
   id: string;
@@ -34,6 +36,8 @@ export class WebSocketService {
   private arduinoService: ArduinoCliService;
   private boardWatch: BoardWatchService;
   private lspService: LspService;
+  private packageJobs: PackageJobsService;
+  private boardSetup: BoardSetupService;
 
   constructor(server: any) {
     // noServer mode: we route HTTP upgrades ourselves so the same HTTP server
@@ -71,19 +75,31 @@ export class WebSocketService {
       }
     );
 
-    this.compileHandler = new CompileHandler();
-    this.uploadHandler = new UploadHandler();
-    this.boardsHandler = new BoardsHandler();
-    this.libraryHandler = new LibraryHandler();
-    this.boardManagerHandler = new BoardManagerHandler();
-    this.serialHandler = new SerialHandler();
-    this.boardDetailsHandler = new BoardDetailsHandler();
-    this.arduinoService = new ArduinoCliService();
-
     // Event-driven board detection: one long-lived `board list --watch`
     // process pushes add/remove events; every change is broadcast to all
     // connected clients so plug/unplug shows up without polling.
     this.boardWatch = new BoardWatchService();
+
+    // Package operations run one at a time; board discovery is paused around
+    // platform changes and restarted so plugged-in boards are re-identified.
+    this.packageJobs = new PackageJobsService({
+      pause: () => this.boardWatch.pause(),
+      resume: () => this.boardWatch.resume(),
+    });
+    this.packageJobs.onChange((state) => {
+      this.broadcast({ type: "status", action: "package-jobs", data: state });
+    });
+    this.boardSetup = new BoardSetupService(this.packageJobs);
+
+    this.compileHandler = new CompileHandler();
+    this.uploadHandler = new UploadHandler();
+    this.boardsHandler = new BoardsHandler();
+    this.libraryHandler = new LibraryHandler(this.packageJobs);
+    this.boardManagerHandler = new BoardManagerHandler(this.packageJobs);
+    this.serialHandler = new SerialHandler();
+    this.boardDetailsHandler = new BoardDetailsHandler();
+    this.arduinoService = new ArduinoCliService();
+
     this.boardWatch.onChange((boards) => {
       this.broadcast({
         type: "status",
@@ -125,6 +141,13 @@ export class WebSocketService {
           data: { boards: this.boardWatch.getBoards() },
         });
       }
+      // And the state of any install in progress plus the board setup, so a
+      // window opened mid-install shows it instead of offering a duplicate.
+      this.sendMessage(connection, {
+        type: "status",
+        action: "package-jobs",
+        data: this.packageJobs.getState(),
+      });
 
       connection.on("message", async (data: WebSocket.Data) => {
         try {
@@ -239,7 +262,12 @@ export class WebSocketService {
           break;
 
         case "install-cores":
-          await handleInstallCores(connection, this.arduinoService);
+          await handleInstallCores(
+            connection,
+            this.boardSetup,
+            this.packageJobs,
+            send
+          );
           break;
 
         case "lib-search":
@@ -335,6 +363,14 @@ export class WebSocketService {
     this.connections.forEach((connection) => {
       this.sendMessage(connection, message);
     });
+  }
+
+  /**
+   * Start the automatic board setup (URLs, index, default platforms). Called
+   * once the server is listening, so clients can watch its progress.
+   */
+  public startBoardSetup(): void {
+    void this.boardSetup.run();
   }
 
   public getConnectionCount(): number {

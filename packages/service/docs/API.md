@@ -168,6 +168,86 @@ Lists all connected Arduino boards.
 }
 ```
 
+Each entry is one board arduino-cli matched on a port, so a port can appear
+more than once. Entries also carry, when known:
+
+- `isHidden`: the match is a discovery-only placeholder (`hide=true` in
+  boards.txt, e.g. "ESP32 Family Device"), which names the port but can't be
+  built for. Real boards are listed first.
+- `vid`, `pid`, `serialNumber`: the port's USB identity (`"0x303a"`, ...).
+
+A USB device nothing matched is listed once with an empty `fqbn` and
+`guess: true`; it is up to the client to offer a board type for it. The same
+entries arrive in the `board-events` push whenever a board is plugged in or
+removed.
+
+### 5. Package operations and the board setup
+
+Platform and library installs and uninstalls (`core-install`,
+`core-uninstall`, `lib-install`, `lib-uninstall`) and `board-url-add` run one
+at a time. A request that arrives while another runs is refused at once:
+
+```json
+{
+  "type": "error",
+  "action": "core-install",
+  "data": {
+    "error": "Installing esp32:esp32 is still running. Wait for it to finish, then try again.",
+    "busy": true,
+    "activeJob": { "label": "Installing esp32:esp32", "...": "..." }
+  }
+}
+```
+
+`lib-install` installs the library's dependencies too. A dependency the
+Library Manager index doesn't have (usually one that comes with the board
+platform, like `Wire` or `SPI`) doesn't fail the install: the library is
+installed with `--no-deps`, then each dependency the index has, and the
+output ends with the ones left to the platform.
+
+The requesting client gets the finished output lines as `output` messages and
+a final `complete` or `error`. Every client also gets the `package-jobs` push
+on connect and whenever an operation or the board setup changes state:
+
+```json
+{
+  "type": "status",
+  "action": "package-jobs",
+  "data": {
+    "active": {
+      "kind": "core-install",
+      "target": "esp32:esp32",
+      "label": "Installing esp32:esp32",
+      "origin": "user",
+      "state": "running",
+      "current": {
+        "item": "esp32:esp-rv32@2601",
+        "phase": "downloading",
+        "percent": 42.5,
+        "total": "590.04 MiB"
+      },
+      "done": ["esp32:esp32-libs@3.3.12"]
+    },
+    "last": null,
+    "setup": {
+      "state": "running",
+      "message": "Installing ESP32 boards (Espressif)",
+      "platforms": [
+        { "id": "tinyCore:esp32", "name": "tinyCore", "status": "installed" },
+        { "id": "esp32:esp32", "name": "ESP32 boards (Espressif)", "status": "installing" }
+      ]
+    }
+  }
+}
+```
+
+**Board setup.** When tinyService starts, it adds the default board-manager
+URLs (Espressif's and tinyCore's), refreshes the board index if it is missing
+or more than a day old, and installs the default platforms (`tinyCore:esp32`,
+then `esp32:esp32`). A platform is installed automatically only once; one the
+user removes stays removed. `install-cores` runs the setup again and installs
+anything missing, replying when it is done.
+
 ## HTTP Endpoints
 
 ### GET /
