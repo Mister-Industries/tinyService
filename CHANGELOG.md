@@ -1,6 +1,6 @@
 # Changelog
 
-## tinyservice 1.3.0, shared 1.3.0 and tinyService Agent 1.1.1 — not released
+## tinyservice 1.3.0, shared 1.3.0 and tinyService Agent 1.2.0 — released 2026-11-12
 
 ### Boards
 
@@ -39,7 +39,6 @@
   is no longer assumed to be an Arduino Uno: an unmatched USB device is listed
   with no FQBN. Choosing a default for those is up to the client.
 
-
 ### Fixed
 
 - Libraries that depend on a library bundled with the board platform install.
@@ -49,12 +48,27 @@
   now installs such a library with `--no-deps`, then installs each of its
   dependencies that the index has, and reports the ones it left to the
   platform.
+
+### tinyService Agent 1.2.0
+
+- Ships tinyservice 1.3.0, so the web version of tinyStudio gets install
+  progress, one install at a time, automatic board setup and the library
+  dependency fix.
+
+## tinyservice 1.2.1 and tinyService Agent 1.1.1 — released 2026-09-21
+
+### Fixed
+
 - A sketch whose name contains `-` or `.` compiles again. The temp folder the
   web build's files are written to was sanitized more strictly than the .ino
   inside it, so `blink-alternate.ino` landed in a folder called
   `blink_alternate` and arduino-cli reported "main file missing from sketch".
   The folder now keeps the characters the Arduino IDE allows, and the main
   .ino is renamed with the folder whenever sanitizing does change the name.
+
+### tinyService Agent 1.1.1
+
+- Ships tinyservice 1.2.1.
 
 ## tinyservice 1.2.0 and tinyService Agent 1.1.0 — released 2026-09-18
 
